@@ -1,0 +1,2773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space Planning Command Center — Task Management</title>
+<style>
+  /* =============================================================
+     1. RESET & BASE
+     ============================================================= */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; min-height: 100dvh;
+    background: var(--bg); background-attachment: fixed; color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, Inter, "SF Pro Display", "SF Pro Text", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.01em;
+    padding: 20px 20px 20px var(--content-offset);
+    transition: background .25s ease, color .25s ease, padding-left var(--dur) var(--ease-spring);
+  }
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  button, input, select, textarea {
+    transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease, transform .12s ease, color .18s ease;
+  }
+  button:active { transform: scale(.98); }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible,
+  [role="button"]:focus-visible, [tabindex]:focus-visible {
+    outline: none; box-shadow: var(--focus);
+  }
+  /* role="button" elements (divs standing in for buttons) need the same
+     cursor/select affordances real buttons get for free. */
+  [role="button"] { cursor: pointer; }
+
+  /* =============================================================
+     2. DESIGN TOKENS
+     ============================================================= */
+  :root {
+    --bg:
+      radial-gradient(at 12% -10%, #eaf1fb 0%, transparent 45%),
+      radial-gradient(at 92% 0%, #f3eefa 0%, transparent 42%),
+      radial-gradient(at 50% 108%, #eaf6ef 0%, transparent 45%),
+      linear-gradient(180deg, #f9f8f6, #f2f1ee);
+    --panel: #ffffff;
+    --panel-soft: #f5f4f1;
+    --ink: #262b33;
+    --muted: #6b7280;
+    --line: #e3e1db;
+    --accent: #4a72b0;
+    --accent-strong: #35578c;
+    --accent-soft: #eaf1fb;
+    --green: #2f7a52;
+    --green-soft: #e8f5ee;
+    --purple: #6f5fa0;
+    --purple-soft: #f0edf8;
+    --red: #b6524f;
+    --red-soft: #f8e9e8;
+    --shadow: 0 2px 8px rgba(30, 41, 59, .05), 0 10px 26px rgba(30, 41, 59, .05);
+    --shadow-lg: 0 16px 42px rgba(30, 41, 59, .13);
+    --radius-card: 16px;
+    --radius-control: 10px;
+    --focus: 0 0 0 3px rgba(74, 114, 176, .22);
+    --glass-blur: none;
+
+    /* Sidebar layout — single source of truth. body's padding-left and
+       the collapsed-state padding-left are both derived from these via
+       calc() instead of being separately hardcoded, so changing the
+       sidebar's width only requires changing it here. */
+    --sidebar-inset: 16px;
+    --sidebar-w: 240px;
+    --sidebar-gap: 24px;
+    --sidebar-w-collapsed: 68px;
+    --sidebar-gap-collapsed: 20px;
+    --content-offset: calc(var(--sidebar-inset) + var(--sidebar-w) + var(--sidebar-gap));
+    --content-offset-collapsed: calc(var(--sidebar-inset) + var(--sidebar-w-collapsed) + var(--sidebar-gap-collapsed));
+
+    --ddl-bg: #e6f1fb; --ddl-txt: #3565a0;
+    --jsl-bg: #faf1de; --jsl-txt: #96642a;
+    --ajc-bg: #faeaf1; --ajc-txt: #a34a72;
+    --jvs-bg: #eeecf9; --jvs-txt: #5f52a0;
+    --ada-bg: #e3f4ef; --ada-txt: #2f7a6e;
+
+    /* Motion */
+    --ease: cubic-bezier(.22,.61,.36,1);
+    --ease-spring: cubic-bezier(.2,.8,.2,1);
+    --dur-fast: .18s;
+    --dur: .35s;
+    --dur-slow: .6s;
+  }
+  [data-theme="dark"] {
+    --bg: radial-gradient(at 15% 0%, #16203a 0%, transparent 50%), radial-gradient(at 85% 0%, #241a38 0%, transparent 50%), radial-gradient(at 50% 100%, #0e2620 0%, transparent 55%), linear-gradient(180deg, #0e1218, #0c0f14);
+    --panel: #171d25; --panel-soft: #1c232c;
+    --ink: #eef1f5; --muted: #a7b0bd; --line: #333c48;
+    --accent: #7fa2ff; --accent-strong: #a8c0ff; --accent-soft: #1d2b49;
+    --green: #62d59a; --green-soft: #173b2a;
+    --purple: #b6a2e8; --purple-soft: #2a2340;
+    --red: #e39a97; --red-soft: #3a2422;
+    --shadow: 0 10px 24px rgba(0,0,0,.24);
+    --shadow-lg: 0 20px 50px rgba(0,0,0,.38);
+    --focus: 0 0 0 3px rgba(127,162,255,.3);
+
+    /* Light-pastel badge colors are unreadable/glare-y on a dark panel —
+       swap to desaturated dark backgrounds with light, legible text. */
+    --ddl-bg: #16324a; --ddl-txt: #7dd3fc;
+    --jsl-bg: #453310; --jsl-txt: #fcd34d;
+    --ajc-bg: #451b3a; --ajc-txt: #f9a8d4;
+    --jvs-bg: #292456; --jvs-txt: #a5b4fc;
+    --ada-bg: #103f3a; --ada-txt: #5eead4;
+  }
+  html[data-theme="dark"] { color-scheme: dark; }
+  html:not([data-theme="dark"]) { color-scheme: light; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
+
+  /* =============================================================
+     3. SHARED COMPONENTS
+     ============================================================= */
+  .chip { font-size: 10px; font-weight: 800; border-radius: 99px; display: inline-block; }
+  .type-pill { padding: 3px 8px; text-transform: uppercase; }
+  .type-pill.ideal { background: var(--purple-soft); color: var(--purple); }
+  .type-pill.temporary { background: var(--accent-soft); color: var(--accent); }
+  .type-pill.standard { background: var(--panel-soft); color: var(--muted); border: 1px solid var(--line); }
+
+  .tag-pill { font-weight: 700; background: var(--panel-soft); color: var(--muted); border: 1px solid var(--line); padding: 2px 8px; margin-right: 4px; }
+  .board-pill { border-radius: 5px; padding: 3px 6px; background: var(--panel-soft); color: var(--muted); border: 1px solid var(--line); }
+
+  .assignee-pill {
+    --member-bg: var(--panel-soft);
+    --member-txt: var(--muted);
+    display: inline-flex; align-items: center; justify-content: center; width: fit-content;
+    padding: 3px 10px; border: 1px solid color-mix(in srgb, var(--member-txt) 40%, transparent);
+    background: var(--member-bg); color: var(--member-txt);
+    transition: all var(--dur-fast) ease;
+  }
+  /* Known default roster — sets the shared --member-* vars so the base
+     rule above renders the right color. A custom color chosen for a
+     team member (any id) overrides these via an inline style instead
+     of needing its own hardcoded class — see personAvatarStyleAttr(). */
+  .assignee-pill.ddl { --member-bg: var(--ddl-bg); --member-txt: var(--ddl-txt); }
+  .assignee-pill.jsl { --member-bg: var(--jsl-bg); --member-txt: var(--jsl-txt); }
+  .assignee-pill.ajc { --member-bg: var(--ajc-bg); --member-txt: var(--ajc-txt); }
+  .assignee-pill.jvs { --member-bg: var(--jvs-bg); --member-txt: var(--jvs-txt); }
+  .assignee-pill.ada { --member-bg: var(--ada-bg); --member-txt: var(--ada-txt); }
+
+
+  .selectable-pill { opacity: .45; filter: grayscale(50%); cursor: pointer; user-select: none; border: 1.5px dashed var(--line); background: var(--panel-soft); color: var(--muted); }
+  .selectable-pill.selected { opacity: 1; filter: grayscale(0); border-style: solid; font-weight: 800; background: var(--member-bg); color: var(--member-txt); border-color: var(--member-txt); }
+
+  .status-badge {
+    display: inline-block; padding: 5px 6px; border-radius: 6px; font-size: 10px; font-weight: 750; width: 100%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid transparent;
+  }
+  .status-badge.pending, .pill.pending { background: var(--panel-soft); color: var(--muted); }
+  .status-badge.progress, .pill.progress { background: var(--accent-soft); color: var(--accent); }
+  .status-badge.review, .pill.review { background: var(--purple-soft); color: var(--purple); }
+  .status-badge.complete, .pill.complete { background: var(--green-soft); color: var(--green); }
+  .pill { font-size: 9.5px; font-weight: 800; padding: 3px 6px; border-radius: 4px; width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .icon-close { border: 0; background: transparent; cursor: pointer; line-height: 1; }
+  .deets-close-btn { position: absolute; top: 16px; right: 18px; font-size: 24px; font-weight: 700; color: var(--muted); }
+  .deets-close-btn:hover { color: var(--ink); }
+  .close { font-size: 25px; color: var(--muted); padding: 2px 5px; }
+
+  .overlay-backdrop {
+    position: fixed; inset: 0; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center; padding: 24px;
+    background: rgba(9, 14, 21, .52);
+  }
+  .overlay-backdrop.open { display: flex; }
+  .deets-overlay { z-index: 90; }
+  .scrim { z-index: 100; }
+
+  .btn-primary {
+    border: 0; background: var(--accent); color: white; padding: 10px 18px; border-radius: var(--radius-control);
+    font-weight: 700; font-size: 13px; min-height: 38px; display: flex; align-items: center; gap: 6px;
+  }
+  .btn-primary:hover { background: var(--accent-strong); }
+  .btn-secondary-alt {
+    border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); padding: 10px 16px;
+    border-radius: var(--radius-control); font-weight: 700; font-size: 13px; min-height: 38px; display: flex; align-items: center; gap: 6px;
+  }
+  .btn-secondary-alt:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .btn-secondary { border: 1px solid var(--line); background: var(--panel); padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--ink); }
+  .btn-icon-danger { border: 0; background: var(--red-soft); color: var(--red); padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 12px; }
+  .cancel-btn { border: 1px solid var(--line); background: var(--panel); padding: 9px 14px; border-radius: 99px; font-weight: 700; color: var(--ink); }
+  .save-btn { border: 0; background: var(--accent); color: #fff; padding: 9px 17px; border-radius: 99px; font-weight: 800; }
+
+  .label { font-size: 12px; font-weight: 750; color: var(--muted); margin: 0 0 7px; }
+  .field { margin-bottom: 17px; }
+  .input, .select {
+    width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 12px; padding: 0 14px;
+    background: var(--panel); color: var(--ink); outline: none; min-height: 40px;
+  }
+  .input::placeholder { color: var(--muted); opacity: 1; }
+  .input:focus, .select:focus { border-color: var(--accent); box-shadow: var(--focus); }
+  textarea.input { height: 82px; padding: 10px 14px; border-radius: 12px; resize: vertical; }
+  .readonly { background: var(--panel-soft) !important; color: var(--muted); }
+
+  .type-pill-select {
+    width: 100%; height: 42px; border: 1px solid var(--line); border-radius: 999px; padding: 0 40px 0 14px;
+    background: var(--panel-soft); color: var(--ink); font-weight: 750; cursor: pointer; appearance: none;
+    background-image: linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position: calc(100% - 19px) 17px, calc(100% - 15px) 17px; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat;
+  }
+  .assignee-select-pill {
+    appearance: none; display: inline-flex; align-items: center; width: 105px; height: 28px;
+    padding: 0 22px 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-soft);
+    color: var(--ink); font-size: 11px; font-weight: 700; cursor: pointer; outline: none;
+    background-image: linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position: calc(100% - 14px) 11px, calc(100% - 10px) 11px; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat;
+  }
+
+  .file-input-wrapper { position: relative; display: inline-block; width: 100%; }
+  .file-input-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+  .upload-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 40px;
+    border: 1px dashed var(--line); border-radius: 999px; background: var(--panel-soft); color: var(--muted); font-size: 13px; font-weight: 700;
+  }
+
+  .progress-wrap { display: flex; align-items: center; gap: 6px; width: 100%; }
+  .bar-bg { flex: 1; height: 5px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); transition: width var(--dur-slow) var(--ease), background var(--dur) ease; }
+  .bar-fill--done { background: var(--green); }
+  .pct-txt { font-size: 10.5px; font-weight: 800; width: 30px; text-align: right; }
+  .pct-txt--done { color: var(--green); }
+
+  .step-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; border-radius: 4px; cursor: pointer; user-select: none; }
+  .step-row:hover { background: var(--accent-soft); }
+  .step-label { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--ink); }
+  .step-icon { width: 14px; height: 14px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; flex-shrink: 0; transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+  .step-row.done .step-icon { background: var(--green); color: white; }
+  .step-row.done .step-text { color: var(--muted); text-decoration: line-through; }
+  .step-row.done .timestamp-tag { font-size: 9.5px; font-weight: 700; color: var(--green); white-space: nowrap; }
+  .step-row.pending .step-icon { border: 1.5px solid var(--line); background: var(--panel); }
+  .step-row.pending .timestamp-tag { display: none; }
+
+  .hidden { display: none !important; }
+
+  /* =============================================================
+     4. APP SHELL — sidebar, header, FAB
+     ============================================================= */
+  .command-sidebar {
+    position: fixed; inset: var(--sidebar-inset) auto var(--sidebar-inset) var(--sidebar-inset); width: var(--sidebar-w); cursor: pointer;
+    display: flex; flex-direction: column; padding: 18px 12px 14px;
+    background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow);
+    z-index: 40; transition: width var(--dur) var(--ease-spring), padding var(--dur) var(--ease-spring);
+  }
+  .command-sidebar :is(button, a, select) { cursor: pointer; }
+  .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px; }
+  .brand-mark { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--ink); color: var(--panel); font-size: 10px; font-weight: 900; letter-spacing: .06em; flex: 0 0 auto; }
+  .sidebar-brand-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .sidebar-brand-copy strong { font-size: 12px; letter-spacing: .02em; }
+  .sidebar-brand-copy span { color: var(--muted); font-size: 10px; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
+  .sidebar-collapse-item { margin-bottom: 10px; }
+  .sidebar-collapse-icon { font-size: 15px; transition: transform var(--dur) var(--ease-spring); }
+  .sidebar-label { margin: 12px 8px 6px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .sidebar-nav-item {
+    width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 9px;
+    border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--muted);
+    text-align: left; font-size: 12px; font-weight: 750;
+  }
+  .sidebar-nav-item:hover { background: var(--panel-soft); color: var(--ink); border-color: var(--line); }
+  .sidebar-nav-item.active { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); }
+  .nav-icon { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; color: var(--muted); }
+  .sidebar-nav-item.active .nav-icon { color: var(--accent-strong); border-color: var(--accent); }
+  .sidebar-footer { margin-top: auto; }
+  .sidebar-theme { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-soft); color: var(--ink); text-align: left; }
+  .sidebar-theme:hover { border-color: var(--accent); }
+  .sidebar-theme > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+  .sidebar-theme strong { font-size: 11px; }
+  .sidebar-theme small { color: var(--muted); font-size: 9px; }
+  .theme-icon { width: 25px; text-align: center; color: var(--accent-strong); font-size: 16px; transition: transform var(--dur) var(--ease-spring); }
+  .sidebar-version { margin: 10px 8px 0; color: var(--muted); font: 700 8px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; }
+
+  .app-header {
+    position: sticky; top: 0; z-index: 30; margin-bottom: 18px;
+    padding: 13px 16px; border-radius: var(--radius-card); border: 1px solid var(--line); box-shadow: var(--shadow);
+    background: var(--panel);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  }
+  .brand-lockup { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .app-brand { font-size: 18px; font-weight: 800; letter-spacing: -.02em; margin: 0; }
+  .app-sub { color: var(--muted); font-size: 13px; margin-top: 2px; max-width: 52ch; }
+  .header-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .live-status { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 16%, transparent); animation: pulse 2.4s ease-in-out infinite; }
+  .force-sync-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 7px 12px; font-size: 11px; font-weight: 800; cursor: pointer; }
+  .force-sync-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .force-sync-btn:disabled { opacity: .6; cursor: default; }
+  .force-sync-btn.syncing svg { animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+
+  .create-task-fab {
+    position: fixed; right: 28px; bottom: 28px; z-index: 35;
+    display: flex; align-items: center; gap: 9px; padding: 12px 17px 12px 12px;
+    border: 1px solid var(--accent); border-radius: 999px; background: var(--accent); color: #fff;
+    box-shadow: 0 10px 22px rgba(74,114,176,.20); font-size: 12px; font-weight: 800;
+    transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-spring), background var(--dur-fast) ease;
+  }
+  .create-task-fab:hover { background: var(--accent-strong); transform: translateY(-3px) scale(1.02); box-shadow: 0 14px 28px rgba(74,114,176,.26); }
+  .create-task-fab:active { transform: scale(.97); }
+  .fab-plus { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.18); font-size: 18px; line-height: 1; }
+
+  .app-container { width: 100%; }
+
+  /* =============================================================
+     5. DASHBOARD — the flagship view
+     ============================================================= */
+  .dashboard-section {
+    background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: var(--radius-card);
+    box-shadow: var(--shadow); padding: 22px; margin-bottom: 18px;
+  }
+  .dashboard-grid { display: grid; grid-template-columns: 340px 1fr; gap: 22px; align-items: stretch; }
+
+  .chart-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    padding: 18px; background: var(--panel-soft); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: 14px;
+  }
+  /* Fluid, not fixed: caps at 264px on roomy screens but scales down
+     with its container (min() against 100%) so it can never force the
+     chart-card wider than the viewport. inset/font sizes below are kept
+     proportional (as %/clamp) so the ring, center disc and text shrink
+     together instead of the center disc swallowing the ring at small sizes. */
+  .donut-wrap { position: relative; width: min(264px, 100%); aspect-ratio: 1 / 1; cursor: pointer; }
+  .donut-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .donut-track { fill: none; stroke: var(--line); stroke-width: 16; opacity: .5; }
+  .donut-seg { fill: none; stroke-width: 16; stroke-linecap: round; transition: stroke-dasharray var(--dur-slow) var(--ease-spring), stroke-dashoffset var(--dur-slow) var(--ease-spring), stroke var(--dur) ease, opacity var(--dur) ease; }
+  .donut-seg.standard { stroke: #94a3b8; }
+  .donut-seg.ideal { stroke: var(--purple); }
+  .donut-seg.temporary { stroke: var(--accent); }
+  .donut-center {
+    position: absolute; inset: 12.5%; border-radius: 50%; background: var(--panel);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.05); transition: transform var(--dur) var(--ease-spring);
+  }
+  .donut-wrap:hover .donut-center { transform: scale(1.04); }
+  .donut-center-title { font-size: clamp(9px, 3.2vw, 12px); font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .donut-center-val { font-size: clamp(20px, 8vw, 32px); font-weight: 850; color: var(--ink); letter-spacing: -.02em; }
+  .donut-hint { font-size: 10.5px; color: var(--muted); text-align: center; }
+
+  .chart-legend { display: flex; gap: 12px; font-size: 11px; font-weight: 700; flex-wrap: wrap; justify-content: center; }
+  .legend-item { display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 3px 6px; border-radius: 6px; color: var(--muted); }
+  .legend-item:hover { background: var(--panel); color: var(--ink); }
+  .legend-item.active { color: var(--ink); background: var(--panel); box-shadow: var(--shadow); }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+
+  .dashboard-details-panel { display: flex; flex-direction: column; gap: 12px; background: var(--panel-soft); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; min-height: 220px; }
+  .dash-panel-title {
+    font-size: 13px; font-weight: 800; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--line); padding-bottom: 10px;
+  }
+  .dash-breakdown-list { display: flex; flex-direction: column; gap: 10px; flex: 1; justify-content: center; }
+  .dash-mode-copy { font-size: 12px; color: var(--muted); font-weight: 600; }
+  /* Always stacked vertically, one card per row, regardless of
+     available width. */
+  .dash-breakdown-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .dash-progress-row {
+    display: flex; flex-direction: column; gap: 6px; background: var(--panel); border: 1px solid var(--line);
+    padding: 10px 12px; border-radius: 10px; cursor: pointer; text-align: left;
+    transition: transform var(--dur-fast) var(--ease), border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+    animation: rise-in var(--dur) var(--ease) backwards;
+  }
+  .dash-progress-row:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow); }
+  .dash-progress-row.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: var(--shadow); }
+  .dash-row-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 750; gap: 8px; }
+  .dash-row-count { font-weight: 800; }
+  .dash-row-sub { font-size: 10px; color: var(--muted); }
+  @keyframes rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* =============================================================
+     6. WORKSPACE TOOLBAR
+     ============================================================= */
+  .workspace-toolbar {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 13px 15px; margin-bottom: 14px; background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: var(--shadow);
+  }
+  .toolbar-search label { display: block; margin-bottom: 6px; font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .search-field { position: relative; display: flex; align-items: center; }
+  .search-glyph { position: absolute; left: 12px; width: 19px; height: 19px; display: grid; place-items: center; border: 1px solid var(--muted); border-radius: 50%; color: var(--muted); font-size: 10px; font-weight: 900; }
+  .toolbar-input { width: 100%; height: 40px; border: 1px solid var(--line); border-radius: var(--radius-control); padding: 0 72px 0 40px; background: var(--panel); color: var(--ink); }
+  .clear-search { position: absolute; right: 7px; border: 0; background: transparent; color: var(--muted); font-size: 10px; font-weight: 800; padding: 7px; }
+  .clear-search:hover { color: var(--accent); }
+  .toolbar-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
+  .filter-cluster { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .filter-chip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 7px 10px; font-size: 10.5px; font-weight: 800; }
+  .filter-chip:hover { color: var(--accent); border-color: var(--accent); }
+  .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .toolbar-meta { color: var(--muted); font-size: 10.5px; font-weight: 700; text-align: right; white-space: nowrap; margin-left: auto; }
+
+  /* =============================================================
+     7. TASK LIST VIEW
+     ============================================================= */
+  .scroll-container { max-height: 72vh; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 20px; }
+  .parent-card { background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow); padding: 13px;
+    /* Query container for the responsive task-list switch below — set
+       here (not on .child-card) so .parent-header-table, which is a
+       sibling of .child-card-list rather than a descendant of any one
+       card, can react to the same width trigger. */
+    container-type: inline-size;
+  }
+  .parent-header-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }
+  .parent-header-table td { padding: 8px 12px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; background: var(--panel-soft); border: 1px solid var(--line); }
+  .parent-header-table .col-task-hdr { width: 220px; text-align: left; }
+  .parent-header-table .col-status-hdr { text-align: center; }
+
+  .child-card-list { display: flex; flex-direction: column; gap: 14px; }
+  .child-card {
+    background: var(--panel-soft); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer;
+    transition: box-shadow var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--dur-fast) ease;
+    animation: rise-in var(--dur) var(--ease) backwards;
+  }
+  .child-card:hover { border-color: var(--accent); box-shadow: 0 6px 18px rgba(74,114,176,.12); transform: translateY(-1px); }
+
+  table.matrix-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; min-width: 840px; }
+  /* Below the matrix's natural min-width, the card scrolls horizontally
+     instead of clipping columns off-screen — the first column (task name /
+     type) stays pinned so you always know which row you're looking at. */
+  .matrix-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .matrix-table-wrap th:first-child, .matrix-table-wrap td:first-child { position: sticky; left: 0; z-index: 1; }
+  th, td { border: 1px solid var(--line); padding: 8px; text-align: center; vertical-align: middle; }
+  .cell-type-pill { width: 220px; text-align: left; padding: 6px 12px; background: var(--panel-soft); font-weight: 700; }
+  .cell-type-pill-inner { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 6px; }
+  .cell-task-name { width: 220px; text-align: left; padding: 10px 12px; background: var(--panel); font-weight: 800; font-size: 13px; color: var(--accent); }
+  .header-cat { background: var(--panel-soft); font-weight: 750; color: var(--muted); font-size: 11px; }
+  .header-cat-progress { width: 76px; background: var(--panel-soft); font-weight: 750; color: var(--muted); font-size: 11px; border-left: 2px solid var(--line); }
+  .cell-progress { width: 76px; border-left: 2px solid var(--line); padding: 6px; }
+  .header-cat-wide { background: var(--panel-soft); text-align: left; padding-left: 14px; font-size: 11px; font-weight: 700; color: var(--muted); }
+  .standard-overview-row { display: flex; justify-content: space-between; align-items: center; padding: 0 8px; gap: 12px; }
+  .standard-overview-text { font-size: 12px; color: var(--ink); min-width: 0; }
+  .standard-overview-right { display: flex; align-items: center; gap: 10px; margin-left: 12px; flex: 0 0 auto; }
+  .overview-label { color: var(--muted); font-size: 11px; }
+  .overview-value { font-weight: 500; }
+  .progress-pill { font-size: 10px; font-weight: 850; padding: 5px 8px; border-radius: 6px; white-space: nowrap; min-width: 42px; text-align: center; }
+  .sync-badge { font-size: 9px; font-weight: 800; padding: 3px 7px; border-radius: 999px; margin-left: 7px; vertical-align: middle; white-space: nowrap; }
+  .sync-badge.syncing { background: var(--accent-soft); color: var(--accent); animation: sync-pulse 1.3s ease-in-out infinite; }
+  .sync-badge.sync-failed { background: var(--red-soft, #fde2e2); color: var(--red, #c0392b); }
+  .link-chip.link-chip-empty { color: var(--muted); cursor: default; }
+  @keyframes sync-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+  /* Mobile task card (shown only under 640px, see RESPONSIVE section) —
+     mirrors the same data as the desktop matrix-table but as a stacked
+     block layout instead of a horizontally-scrolling table. */
+  .mobile-task-card { display: none; }
+  /* These three are unconditional (not scoped to the phone breakpoint)
+     because .compact-task-table below reuses them too, and it can be
+     active at any viewport width — its trigger is the card's own
+     rendered width via container query, not the viewport. */
+  .mobile-task-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .mobile-task-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
+  .mobile-task-name { font-weight: 800; font-size: 13px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+  /* Compact task table — a middle tier between the full desktop
+     matrix-table and the mobile card, triggered by .parent-card's own
+     rendered width (via container-type set on it above) rather than
+     the viewport, so it activates exactly when the matrix-table's
+     840px min-width no longer fits inside a card — i.e. right as the
+     last category column would otherwise start getting clipped and
+     force horizontal scroll. That scroll is what this replaces.
+     886px here = 860px card width + .parent-card's 2×13px padding,
+     so the actual trigger point is the same 860px card width either
+     way; it's just measured one level up because .parent-header-table
+     needs to react to it too and isn't a descendant of any one card.
+     The identity bar reuses .mobile-task-top/-left/-name verbatim (not
+     a separate set of rules) so the name+type grouping and margins
+     match the phone layout exactly instead of drifting from it. */
+  .compact-task-table { display: none; padding: 12px 13px 13px; }
+  @container (max-width: 886px) {
+    .parent-header-table { display: none; }
+    .matrix-table-wrap { display: none; }
+    .compact-task-table { display: block; }
+  }
+  .compact-task-standard-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
+  .compact-task-standard-row .standard-overview-text { flex: 1 1 auto; min-width: 0; }
+  /* The full matrix-table's 840px min-width exists to fit the wide
+     name/type columns plus 9 categories side by side — this smaller
+     table only has the 9 category columns, so it doesn't need that
+     floor and would otherwise force horizontal scroll right back in. */
+  table.compact-cat-table { min-width: 0; margin-top: 10px; }
+
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    min-height: 190px; padding: 28px; text-align: center; border: 1px dashed var(--line); border-radius: 12px; background: var(--panel-soft);
+  }
+  .empty-state-title { font-size: 14px; font-weight: 850; }
+  .empty-state-copy { max-width: 42ch; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .empty-state .btn-secondary-alt { margin-top: 6px; }
+
+  /* =============================================================
+     8. CALENDAR VIEW
+     ============================================================= */
+  /* The whole Calendar tab now scrolls normally with the page (like
+     Dashboard, Directories, People) instead of being pinned to one
+     screen, since there's a Task List below the calendar box too. */
+  .calendar-view-wrap { display: flex; flex-direction: column; gap: 18px; margin-bottom: 18px; }
+
+  /* Calendar box: sized to content — no fixed aspect ratio, so a month
+     with more events (taller cells) just makes the box taller instead of
+     scrolling inside it. Width is still capped so it doesn't stretch too
+     wide on large screens. */
+  .calendar-container { background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow); padding: 18px; display: flex; flex-direction: column; gap: 16px; width: min(100%, 900px); align-self: center; }
+  .cal-nav { display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; }
+  .cal-month-title { font-size: 18px; font-weight: 800; }
+  .cal-nav-btns { display: flex; gap: 8px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); border-left: 1px solid var(--line); border-top: 1px solid var(--line); background: var(--line); gap: 1px; border-radius: 8px; min-width: 0; width: 100%; }
+  .cal-weekday { background: var(--panel-soft); text-align: center; font-weight: 800; font-size: 12px; color: var(--ink); padding: 10px 0; text-transform: uppercase; letter-spacing: .04em; overflow: hidden; white-space: nowrap; }
+  .cal-cell { background: var(--panel); min-height: 100px; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .cal-cell.other-month { background: var(--panel-soft); color: var(--muted); }
+  .cal-cell.today { box-shadow: inset 0 0 0 2px var(--accent); }
+  .cal-day-num { font-size: 13px; font-weight: 800; align-self: flex-end; color: var(--ink); }
+  .cal-cell.other-month .cal-day-num { color: var(--muted); }
+  .cal-event-chip { font-size: 10.5px; font-weight: 700; padding: 4px 6px; border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: filter var(--dur-fast) ease; max-width: 100%; }
+  .cal-event-chip:hover { filter: brightness(.95); }
+  .cal-event-chip.standard { background: var(--panel-soft); color: var(--ink); border-left: 3px solid #64748b; }
+  .cal-event-chip.temporary { background: var(--accent-soft); color: var(--accent); border-left: 3px solid var(--accent); }
+  .cal-event-chip.ideal { background: var(--purple-soft); color: var(--purple); border-left: 3px solid var(--purple); }
+
+  /* Task List below the calendar box — same look as the Dashboard's
+     task list (parent-card / child-card-list), full page width. */
+  .calendar-task-list-panel { width: 100%; }
+
+  /* =============================================================
+     9. REFERENCE PAGES — Directories & People
+     ============================================================= */
+  .reference-section { margin: 0 0 20px; padding: 20px 24px; background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow); }
+  .reference-header { margin-bottom: 16px; }
+  .reference-header h2 { margin: 0 0 4px; font-size: 18px; letter-spacing: -.02em; }
+  .reference-header p { margin: 0; color: var(--muted); font-size: 12px; }
+  .reference-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 300px)); gap: 10px; justify-content: start; }
+  .people-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  .reference-item { padding: 13px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 10px; }
+  .reference-item strong { font-size: 13px; }
+  .reference-item span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+  .reference-item-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+
+  /* Directory pill tabs (ported from the cards-first directory build) */
+  .pill-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 18px; padding: 4px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 12px; width: max-content; max-width: 100%; }
+  .pill-tab { border: 0; background: transparent; color: var(--muted); padding: 8px 13px; border-radius: 9px; font-size: 11px; font-weight: 750; cursor: pointer; transition: all .22s var(--ease); }
+  .pill-tab.active { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .pill-tab:hover { color: var(--ink); }
+
+  /* Directory list + editable cards */
+  .directory-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .directory-toolbar h3 { margin: 0; font-size: 15px; }
+  .directory-toolbar p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
+  .directory-add { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 8px 12px; font-size: 10px; font-weight: 800; cursor: pointer; }
+  .directory-add:hover { border-color: var(--accent); color: var(--accent); }
+  .directory-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 12px;
+  }
+  .directory-card {
+    background: var(--panel-soft); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: clamp(13px, 1.15vw, 16px);
+    min-width: 0;
+    max-height: 380px;
+    overflow-y: auto;
+    cursor: pointer;
+    transform: translateY(0) scale(1);
+    transition:
+      transform .22s var(--ease),
+      box-shadow .22s var(--ease),
+      border-color .22s var(--ease),
+      background-color .22s ease;
+  }
+  .directory-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    background: color-mix(in srgb, var(--panel-soft) 88%, var(--panel));
+    transform: translateY(-2px) scale(1.006);
+    box-shadow: var(--shadow);
+  }
+  .directory-card:active { transform: translateY(0) scale(.998); }
+  .directory-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .directory-card h3 { margin: 0; font-size: 13px; font-weight: 800; line-height: 1.3; }
+  .directory-card p { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+  .card-link-btn { margin-top: 11px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: var(--panel); color: var(--accent); border-radius: 999px; padding: 7px 12px; font-size: 9px; font-weight: 800; cursor: pointer; }
+  .card-link-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .data-row { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 10px; align-items: flex-start; }
+  .data-label { color: var(--muted); font-weight: 700; flex: 0 0 90px; }
+  .data-value { color: var(--ink); text-align: right; word-break: break-word; min-width: 0; }
+  .click-copy { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+  .mini-tag { padding: 4px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .empty-directory { padding: 28px; text-align: center; border: 1px dashed var(--line); border-radius: 14px; color: var(--muted); font-size: 11px; grid-column: 1/-1; }
+  .map-preview { width: 100%; height: 150px; border: 1px solid var(--line); border-radius: 8px; margin-top: 10px; display: block; }
+
+  /* Directory entry modal (add / edit / delete in one place) */
+  .ref-modal { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(23,32,42,.32); backdrop-filter: blur(6px); }
+  .ref-modal.open { display: flex; animation: refFade .22s var(--ease); }
+  .ref-modal-card { width: min(560px, 100%); max-height: calc(100vh - 40px); overflow: auto; background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-radius: var(--radius-card); box-shadow: var(--shadow-lg); padding: 22px; animation: refIn .32s var(--ease-spring); }
+  .ref-modal-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 18px; }
+  .ref-modal-head h3 { margin: 0; font-size: 17px; }
+  .ref-modal-head p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+  .ref-close { border: 0; background: transparent; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; }
+  .ref-close:hover { color: var(--ink); }
+  .ref-form { display: grid; gap: 13px; }
+  .ref-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ref-form label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 750; }
+  .ref-form input, .ref-form textarea, .ref-form select { width: 100%; box-sizing: border-box; background: var(--panel-soft); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px 11px; outline: none; font: inherit; }
+  .ref-form input:focus, .ref-form textarea:focus, .ref-form select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+  .ref-form-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 5px; }
+  .ref-form-actions button { padding: 9px 13px; border-radius: 999px; font-size: 10px; font-weight: 800; cursor: pointer; }
+  .ref-cancel { border: 1px solid var(--line); background: var(--panel-soft); color: var(--ink); }
+  .ref-save { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+  .ref-delete { border: 1px solid var(--red); background: transparent; color: var(--red); margin-right: auto; }
+  .ref-delete:hover { background: color-mix(in srgb, var(--red) 10%, transparent); }
+  @keyframes refFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes refIn { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+  @media (max-width: 640px) {
+    .pill-tabs { width: 100%; } .pill-tab { flex: 1; }
+    .ref-form-grid { grid-template-columns: 1fr; }
+    .directory-toolbar { align-items: flex-start; flex-direction: column; }
+    .directory-add { padding: 7px 10px; }
+  }
+
+  /* Folder / location link rows, click-to-copy chips (still used on People) */
+  .entry-link { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); font-weight: 700; font-size: 11px; text-decoration: none; margin-top: 6px; }
+  .entry-link:hover { text-decoration: underline; }
+  .copy-chip { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 7px; padding: 5px 9px; font-size: 11px; font-weight: 600; margin-top: 5px; display: inline-flex; align-items: center; gap: 5px; }
+  .copy-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* People */
+  .person-card { padding: 15px; background: var(--panel-soft); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease); }
+  .person-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .person-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .person-card-head { display: flex; align-items: center; gap: 10px; }
+  /*
+   * Global team-member identity:
+   * avatar colors intentionally mirror the corresponding assignee-pill colors.
+   * Keep these classes reusable anywhere a team member is represented.
+   */
+  .person-avatar {
+    --member-bg: var(--ink);
+    --member-txt: var(--panel);
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--member-bg);
+    color: var(--member-txt);
+    border: 1px solid color-mix(in srgb, var(--member-txt) 18%, transparent);
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 900;
+    flex: 0 0 auto;
+    transition: transform .22s var(--ease), box-shadow .22s var(--ease), background-color .22s ease, color .22s ease;
+  }
+  .person-avatar.ddl { --member-bg: var(--ddl-bg); --member-txt: var(--ddl-txt); }
+  .person-avatar.jsl { --member-bg: var(--jsl-bg); --member-txt: var(--jsl-txt); }
+  .person-avatar.ajc { --member-bg: var(--ajc-bg); --member-txt: var(--ajc-txt); }
+  .person-avatar.jvs { --member-bg: var(--jvs-bg); --member-txt: var(--jvs-txt); }
+  .person-avatar.ada { --member-bg: var(--ada-bg); --member-txt: var(--ada-txt); }
+  .person-card:hover .person-avatar { transform: scale(1.035); box-shadow: 0 5px 14px color-mix(in srgb, var(--member-txt) 12%, transparent); }
+  .person-card-head strong { font-size: 13px; display: block; }
+  .person-position { color: var(--muted); font-size: 11px; }
+  .person-categories { display: flex; flex-wrap: wrap; gap: 5px; }
+  .person-category { padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); font-size: 10px; font-weight: 700; background: var(--panel); }
+  .person-stats { display: flex; gap: 8px; }
+  .person-stat { flex: 1; text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 6px; }
+  .person-stat .stat-num { display: block; font-size: 17px; font-weight: 850; }
+  .person-stat.pending .stat-num { color: var(--accent); }
+  .person-stat.completed .stat-num { color: var(--green); }
+  .person-stat .stat-lbl { font-size: 9.5px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+
+  /* Person details overlay — pending tasks (with progress), then completed */
+  .person-deets-head { flex: 1; }
+  .person-deets-head .task-title { display: block; }
+  .person-deets-head .person-position { margin-top: 2px; }
+  .person-deets-section { margin-top: 6px; }
+  .person-deets-section-title { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+  .person-deets-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--panel-soft); border: 1px solid var(--line); color: var(--ink); font-size: 10px; }
+  .person-deets-list { display: flex; flex-direction: column; gap: 8px; }
+  .person-deets-row { padding: 10px 12px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: border-color .2s ease, transform .2s ease; }
+  .person-deets-row:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .person-deets-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .person-deets-row-top { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .person-deets-row-title { flex: 1; min-width: 0; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .mini-modal { width: min(480px, 100%); height: auto; max-height: 90vh; }
+  .mini-modal .right-content { padding: 20px 24px; overflow: auto; }
+
+  /* =============================================================
+     10. TASK DETAILS OVERLAY
+     ============================================================= */
+  .deets-card {
+    background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-radius: 14px; box-shadow: var(--shadow-lg);
+    width: min(860px, 100%); max-height: 90vh; overflow-y: auto; padding: 24px;
+    display: flex; flex-direction: column; gap: 16px; position: relative;
+  }
+  .card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 12px; padding-right: 28px; }
+  .title-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .task-title { font-size: 18px; font-weight: 800; }
+  .deets-section-block { display: flex; flex-direction: column; gap: 12px; }
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-group .lbl { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .field-group .val-box { font-size: 13px; font-weight: 500; color: var(--ink); background: var(--panel-soft); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; line-height: 1.4; }
+  .meta-row { display: flex; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; gap: 16px; flex-wrap: wrap; }
+  .meta-item { display: flex; flex-direction: column; flex: 1; min-width: 120px; }
+  .meta-item .lbl { font-size: 9.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 3px; }
+  .meta-item .val { font-size: 12.5px; font-weight: 700; }
+  .empty-note { font-size: 12px; color: var(--muted); font-style: italic; }
+  .field-lock-note { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: none; letter-spacing: 0; }
+  .assets-strip { display: flex; gap: 8px; align-items: center; font-size: 11px; flex-wrap: wrap; width: 100%; margin-top: -4px; }
+  .file-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 6px; font-weight: 600; color: var(--ink); text-decoration: none; margin-right: auto; }
+  .drive-links { display: flex; gap: 8px; margin-left: auto; }
+  .link-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 6px; font-weight: 600; color: var(--accent); text-decoration: none; }
+
+  .cat-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .cat-item { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); overflow: hidden; }
+  .cat-top { display: grid; grid-template-columns: minmax(120px,1.2fr) auto minmax(120px,1fr) minmax(90px,.8fr); align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; }
+  .cat-top:hover { background: var(--panel-soft); }
+  .cat-name { font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .steps-drawer {
+    border-top: 1px solid var(--line); padding: 8px 12px; background: var(--panel-soft);
+    display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 6px 16px;
+    max-height: 500px; opacity: 1; overflow: hidden; transition: max-height var(--dur) var(--ease), opacity var(--dur-fast) ease, padding var(--dur-fast) ease;
+  }
+  .steps-drawer.closed { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; border-top: 0; }
+
+  .subtask-progress-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 800; font-size: 13px; }
+  .standard-subtask-list { display: flex; flex-direction: column; gap: 8px; }
+  .standard-subtask-item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; background: var(--panel); cursor: pointer; }
+  .standard-subtask-item:hover { background: var(--panel-soft); }
+  .standard-subtask-item .timestamp-tag { font-size: 9.5px; font-weight: 700; color: var(--green); white-space: nowrap; }
+  .standard-subtask-item.done .step-icon { background: var(--green); color: white; }
+  .standard-subtask-item.done .step-text { color: var(--muted); text-decoration: line-through; }
+  .standard-subtask-item.pending .step-icon { border: 1.5px solid var(--line); background: var(--panel); }
+  .standard-subtask-item.pending .timestamp-tag { display: none; }
+
+  /* =============================================================
+     11. TASK ENTRY MODAL
+     ============================================================= */
+  .modal { width: min(1120px,100%); height: min(91vh,900px); background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-radius: 14px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
+  .modal-head { padding: 19px 24px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: flex-start; }
+  .modal-title { font-size: 20px; font-weight: 800; letter-spacing: -.03em; }
+  .modal-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .modal-body { display: grid; grid-template-columns: 280px 1fr; min-height: 0; flex: 1; }
+  .left-aside { border-right: 1px solid var(--line); padding: 20px; overflow: auto; background: var(--panel-soft); }
+  .right-content { overflow: auto; padding: 22px 25px 30px; }
+  .section { margin-bottom: 25px; border-bottom: 1px solid var(--line); padding-bottom: 20px; }
+  .section:last-child { border-bottom: 0; }
+  .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .section-title { font-size: 14px; font-weight: 800; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .assignee-selector-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .store-results { border: 1px solid var(--line); border-radius: 12px; margin-top: 5px; overflow: hidden; display: none; background: var(--panel); box-shadow: var(--shadow); }
+  .store-result { padding: 10px 11px; background: var(--panel); border-bottom: 1px solid var(--line); cursor: pointer; }
+  .store-result:hover { background: var(--accent-soft); }
+  .store-name { font-weight: 750; font-size: 13px; }
+  .store-code { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .categories { display: flex; flex-direction: column; gap: 8px; }
+  .entry-cat { border: 1px solid var(--line); border-radius: 10px; background: var(--panel-soft); overflow: hidden; }
+  .entry-cat-top { padding: 8px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+  .entry-cat-top:hover { background: var(--panel); }
+  .assignee-select-pill.selected { background-color: var(--member-bg); color: var(--member-txt); border-color: var(--member-txt); font-weight: 800; }
+  .entry-cat-name { flex: 1; font-weight: 800; font-size: 13px; }
+  .subtask-builder { display: flex; flex-direction: column; gap: 8px; }
+  .subtask-input-row { display: flex; gap: 8px; align-items: center; }
+  .modal-foot { border-top: 1px solid var(--line); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; background: var(--panel); }
+  .foot-actions { display: flex; gap: 8px; }
+
+  /* =============================================================
+     12. TOASTS
+     ============================================================= */
+  .toast-region { position: fixed; right: 22px; bottom: 22px; z-index: 200; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  .toast {
+    max-width: min(380px, calc(100vw - 32px)); padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); color: var(--ink); box-shadow: var(--shadow-lg); font-size: 12px; font-weight: 700;
+    opacity: 0; transform: translateY(8px); animation: toast-in .25s var(--ease) forwards;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  @keyframes toast-in { to { opacity: 1; transform: translateY(0); } }
+
+  /* =============================================================
+     13. SIDEBAR COLLAPSE (desktop only — mobile already uses its own
+         compact horizontal layout below, so this is scoped to avoid
+         the two systems fighting over .command-sidebar width)
+     ============================================================= */
+  @media (min-width: 901px) {
+    .command-sidebar.collapsed { width: var(--sidebar-w-collapsed); padding: 18px 8px 14px; }
+    .command-sidebar.collapsed .sidebar-brand-copy,
+    .command-sidebar.collapsed .sidebar-label,
+    .command-sidebar.collapsed .sidebar-nav-item span:last-child,
+    .command-sidebar.collapsed .sidebar-theme > span:last-child,
+    .command-sidebar.collapsed .sidebar-version { display: none; }
+    .command-sidebar.collapsed .sidebar-brand { justify-content: center; padding: 4px 0 20px; }
+    .command-sidebar.collapsed .sidebar-collapse-icon { transform: rotate(180deg); }
+    .command-sidebar.collapsed .sidebar-nav-item,
+    .command-sidebar.collapsed .sidebar-theme { justify-content: center; padding: 10px; }
+    body.sidebar-collapsed { padding-left: var(--content-offset-collapsed); }
+  }
+
+  /* =============================================================
+     14. RESPONSIVE
+     ============================================================= */
+  @media (max-width: 900px) {
+    /* Below this width the sidebar becomes a fixed bottom bar (same
+       always-visible logic as the Create Task FAB) instead of a fixed
+       side column — stacked as: Create Task button, then Sidebar bar. */
+    body { padding: 14px; padding-bottom: 130px; }
+    .command-sidebar {
+      position: fixed; inset: auto 10px 10px 10px; cursor: default;
+      width: auto; height: 62px;
+      flex-direction: row; align-items: center; padding: 7px; border-radius: 14px;
+    }
+    .sidebar-brand { padding: 0 7px; border-right: 1px solid var(--line); }
+    .sidebar-brand-copy { display: none; }
+    .sidebar-collapse-item { display: none; }
+    .sidebar-nav { flex-direction: row; flex: 1; justify-content: center; }
+    .sidebar-label { display: none; }
+    .sidebar-nav-item { width: auto; justify-content: center; padding: 8px; }
+    .sidebar-nav-item span:last-child { display: none; }
+    .sidebar-footer { margin: 0; }
+    .sidebar-theme { width: 42px; height: 42px; justify-content: center; padding: 0; }
+    .sidebar-theme > span:last-child, .sidebar-version { display: none; }
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .toolbar-meta { text-align: left; margin-left: 0; }
+    .create-task-fab { right: 18px; bottom: 88px; }
+    .cal-cell { min-height: 56px; padding: 6px; }
+  }
+  @media (max-width: 640px) {
+    body { padding: 9px; padding-bottom: 130px; }
+    .app-header { padding: 12px; }
+    .app-brand { font-size: 16px; }
+    .live-status { display: none; }
+    .header-actions { width: 100%; }
+    .dashboard-section { padding: 14px; }
+    .chart-legend { gap: 8px; flex-wrap: wrap; }
+    .scroll-container { max-height: none; }
+    .deets-card { max-height: 94dvh; padding: 17px; }
+    .modal { height: 96dvh; border-radius: 12px; }
+    .modal-body { grid-template-columns: 1fr; }
+    .left-aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 12px; }
+    .right-content { padding: 17px 14px 24px; }
+    .cat-top { grid-template-columns: 1fr auto; gap: 7px; }
+    .cat-top .pill, .cat-top .progress-wrap { grid-column: 1 / -1; }
+    .foot-actions { width: 100%; }
+    .cancel-btn, .save-btn { flex: 1; }
+
+    /* Task list: swap the horizontally-scrolling matrix table for a
+       stacked card — name/type left, progress right, then each
+       category's name centered directly above its status. */
+    .matrix-table-wrap { display: none; }
+    .mobile-task-card { display: block; padding: 12px 13px 13px; }
+    .compact-task-table { display: none; }
+    .mobile-task-sub { margin: 8px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+    .mobile-task-cats { display: flex; flex-wrap: wrap; gap: 8px 6px; margin-top: 12px; }
+    .mobile-cat-block {
+      flex: 1 1 27%; min-width: 82px; display: flex; flex-direction: column; align-items: center;
+      gap: 6px; text-align: center; padding: 9px 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    }
+    .mobile-cat-name { font-size: 9.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; line-height: 1.25; }
+
+    /* Calendar: shrink cells and chips so the full 7-day grid always
+       fits the viewport width with no horizontal scrolling. Cells still
+       grow to fit their content — never internally scrollable. */
+    .calendar-container { padding: 12px; gap: 12px; }
+    .cal-month-title { font-size: 15px; }
+    .cal-nav-btns { gap: 6px; }
+    .cal-nav-btns .btn-secondary-alt { padding: 7px 9px; font-size: 11px; }
+    .cal-cell { min-height: 60px; padding: 4px; gap: 3px; }
+    .cal-day-num { font-size: 11.5px; }
+    .cal-weekday { font-size: 10.5px; }
+    .cal-event-chip { font-size: 9px; padding: 3px 4px; border-radius: 3px; }
+  }
+  @media (max-width: 480px) {
+    /* Below this width even abbreviated weekday words wrap; drop to a
+       single letter per day so the header row never overflows. */
+    .cal-weekday { font-size: 0; }
+    .cal-weekday::after { content: attr(data-short); font-size: 11px; }
+    .cal-nav { flex-wrap: wrap; gap: 8px; }
+    .cal-nav-btns { width: 100%; }
+    .cal-nav-btns .btn-secondary-alt { flex: 1; }
+    .cal-cell { min-height: 40px; }
+    .cal-event-chip { padding: 2px 3px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COMMAND SIDEBAR -->
+<aside class="command-sidebar" id="commandSidebar" aria-label="Primary navigation" onclick="handleSidebarClick(event)" title="Click to collapse or expand">
+  <div class="sidebar-brand">
+    <div class="brand-mark" aria-hidden="true">SP</div>
+    <div class="sidebar-brand-copy">
+      <strong>Space Planning</strong>
+      <span>Command Center</span>
+    </div>
+  </div>
+
+  <button class="sidebar-nav-item sidebar-collapse-item" type="button" id="sidebarCollapseBtn" onclick="event.stopPropagation(); toggleSidebar()" aria-label="Collapse sidebar" aria-expanded="true">
+    <span class="nav-icon sidebar-collapse-icon" aria-hidden="true">‹</span><span>Collapse</span>
+  </button>
+
+  <nav class="sidebar-nav">
+    <div class="sidebar-label">Workspace</div>
+    <button class="sidebar-nav-item active" type="button" data-nav="dashboard" onclick="navigateWorkspace('dashboard')">
+      <span class="nav-icon" aria-hidden="true">◧</span><span>Dashboard</span>
+    </button>
+    <button class="sidebar-nav-item" type="button" data-nav="calendar" onclick="navigateWorkspace('calendar')">
+      <span class="nav-icon" aria-hidden="true">▦</span><span>Calendar</span>
+    </button>
+    <div class="sidebar-label">Reference</div>
+    <button class="sidebar-nav-item" type="button" data-nav="directories" onclick="navigateWorkspace('directories')">
+      <span class="nav-icon" aria-hidden="true">▤</span><span>Directories</span>
+    </button>
+    <button class="sidebar-nav-item" type="button" data-nav="people" onclick="navigateWorkspace('people')">
+      <span class="nav-icon" aria-hidden="true">◎</span><span>People</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="sidebar-theme" type="button" onclick="toggleTheme()" aria-label="Switch color theme">
+      <span class="theme-icon" aria-hidden="true" id="themeIcon">◐</span>
+      <span><strong id="themeModeLabel">Dark mode</strong><small id="themeModeHint">Switch to dark workspace</small></span>
+    </button>
+    <div class="sidebar-version">SPACE PLANNING · v2.0</div>
+  </div>
+</aside>
+
+<!-- GLOBAL APP HEADER -->
+<header class="app-header">
+  <div class="brand-lockup">
+    <div class="brand-mark" aria-hidden="true">SP</div>
+    <div>
+      <h1 class="app-brand">Space Planning Command Center</h1>
+      <div class="app-sub">Unified planning, workflow progress, and deadline control</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <span class="live-status"><span class="live-dot" aria-hidden="true"></span> Live workspace</span>
+    <button class="force-sync-btn" id="forceSyncBtn" type="button" onclick="forceSync()" aria-label="Force sync with Google Sheets" title="Retry any unsaved tasks and refresh from Google Sheets">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      <span>Sync</span>
+    </button>
+  </div>
+</header>
+
+<button class="create-task-fab" type="button" onclick="openCreateModal()" aria-label="Create task">
+  <span class="fab-plus" aria-hidden="true">+</span><span>Create task</span>
+</button>
+
+<main class="app-container">
+
+  <!-- DASHBOARD -->
+  <section class="dashboard-section" id="dashboardSection">
+    <div class="dashboard-grid">
+      <div class="chart-card">
+        <div class="donut-wrap" role="button" tabindex="0" aria-label="Switch between distribution and progress view" onclick="toggleDashboardMode()" onkeydown="keyActivate(event, toggleDashboardMode)" title="Click to switch between distribution and progress">
+          <svg class="donut-svg" viewBox="0 0 176 176" id="donutSvg">
+            <circle class="donut-track" cx="88" cy="88" r="72"></circle>
+            <circle class="donut-seg standard" id="segStandard" cx="88" cy="88" r="72"></circle>
+            <circle class="donut-seg ideal" id="segIdeal" cx="88" cy="88" r="72"></circle>
+            <circle class="donut-seg temporary" id="segTemporary" cx="88" cy="88" r="72"></circle>
+          </svg>
+          <div class="donut-center">
+            <span class="donut-center-title" id="donutTitle">Total Tasks</span>
+            <span class="donut-center-val" id="donutVal">0</span>
+          </div>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item" role="button" tabindex="0" data-legend="Standard" onclick="selectDashboardFilter('Standard')" onkeydown="keyActivate(event, () => selectDashboardFilter('Standard'))"><span class="legend-dot" style="background:#94a3b8;"></span>Standard</div>
+          <div class="legend-item" role="button" tabindex="0" data-legend="Ideal" onclick="selectDashboardFilter('Ideal')" onkeydown="keyActivate(event, () => selectDashboardFilter('Ideal'))"><span class="legend-dot" style="background:var(--purple);"></span>Ideal</div>
+          <div class="legend-item" role="button" tabindex="0" data-legend="Temporary" onclick="selectDashboardFilter('Temporary')" onkeydown="keyActivate(event, () => selectDashboardFilter('Temporary'))"><span class="legend-dot" style="background:var(--accent);"></span>Temporary</div>
+        </div>
+        <div class="donut-hint">Click the chart to toggle distribution / progress</div>
+      </div>
+
+      <div class="dashboard-details-panel">
+        <div class="dash-panel-title">
+          <span id="dashPanelHeading">Task type distribution</span>
+        </div>
+        <div class="dash-breakdown-list" id="dashBreakdownContent"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WORKSPACE TOOLBAR -->
+  <section class="workspace-toolbar" aria-label="Task controls">
+    <div class="toolbar-search">
+      <label for="taskSearch">Search tasks</label>
+      <div class="search-field">
+        <span class="search-glyph" aria-hidden="true">/</span>
+        <input id="taskSearch" class="toolbar-input" type="search" placeholder="Search task, store, tag, or assignee..." autocomplete="off" oninput="setTaskSearch(this.value)">
+        <button class="clear-search" type="button" onclick="clearTaskSearch()" aria-label="Clear search">Clear</button>
+      </div>
+    </div>
+    <div class="toolbar-filter-row">
+      <div class="filter-cluster" role="group" aria-label="Task type filter">
+        <button class="filter-chip active" data-filter="All" type="button" onclick="selectDashboardFilter('All')">All</button>
+        <button class="filter-chip" data-filter="Standard" type="button" onclick="selectDashboardFilter('Standard')">Standard</button>
+        <button class="filter-chip" data-filter="Ideal" type="button" onclick="selectDashboardFilter('Ideal')">Ideal</button>
+        <button class="filter-chip" data-filter="Temporary" type="button" onclick="selectDashboardFilter('Temporary')">Temporary</button>
+      </div>
+      <div class="toolbar-meta" id="workspaceMeta">Showing all tasks</div>
+    </div>
+  </section>
+
+  <!-- LIST VIEW -->
+  <section class="scroll-container" id="listViewSection">
+    <div class="parent-card">
+      <table class="parent-header-table">
+        <tr><td class="col-task-hdr">TASK</td><td class="col-status-hdr">STATUS</td></tr>
+      </table>
+      <div class="child-card-list" id="childCardListContainer"></div>
+    </div>
+  </section>
+
+  <!-- CALENDAR VIEW -->
+  <section class="calendar-view-wrap hidden" id="calendarViewSection">
+    <div class="calendar-container" id="calendarBox">
+      <div class="cal-nav">
+        <div class="cal-month-title" id="calMonthTitle">September 2026</div>
+        <div class="cal-nav-btns">
+          <button class="btn-secondary-alt" onclick="changeMonth(-1)">‹ Prev</button>
+          <button class="btn-secondary-alt" onclick="goToCurrentMonth()">Today</button>
+          <button class="btn-secondary-alt" onclick="changeMonth(1)">Next ›</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid">
+        <div class="cal-weekday" data-short="S">Sun</div><div class="cal-weekday" data-short="M">Mon</div><div class="cal-weekday" data-short="T">Tue</div>
+        <div class="cal-weekday" data-short="W">Wed</div><div class="cal-weekday" data-short="T">Thu</div><div class="cal-weekday" data-short="F">Fri</div><div class="cal-weekday" data-short="S">Sat</div>
+      </div>
+    </div>
+
+    <!-- Task List, shown directly below the calendar box -->
+    <div class="calendar-task-list-panel">
+      <div class="parent-card">
+        <table class="parent-header-table">
+          <tr><td class="col-task-hdr">TASK</td><td class="col-status-hdr">STATUS</td></tr>
+        </table>
+        <div class="child-card-list" id="calendarTaskListContainer"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIRECTORIES -->
+  <section class="reference-section hidden" id="directoriesSection">
+    <div class="reference-header">
+      <h2>Directories</h2>
+      <p>Folders, categories, contacts, and store locations in one searchable workspace</p>
+    </div>
+
+    <div class="pill-tabs" role="tablist" aria-label="Directory types">
+      <button class="pill-tab active" type="button" data-directory-tab="folders" onclick="setDirectoryTab('folders')">Folders</button>
+      <button class="pill-tab" type="button" data-directory-tab="categories" onclick="setDirectoryTab('categories')">Category</button>
+      <button class="pill-tab" type="button" data-directory-tab="contacts" onclick="setDirectoryTab('contacts')">Contacts</button>
+      <button class="pill-tab" type="button" data-directory-tab="locations" onclick="setDirectoryTab('locations')">Locations</button>
+    </div>
+
+    <div id="directoryTabContent"></div>
+  </section>
+
+  <!-- PEOPLE -->
+  <section class="reference-section hidden" id="peopleSection">
+    <div class="reference-header">
+      <div class="directory-toolbar">
+        <div><h2>People</h2><p>Category ownership and this month's task load per team member</p></div>
+        <button class="directory-add" type="button" onclick="openReferenceEntry('people')">+ Add Team Member</button>
+      </div>
+    </div>
+    <div class="people-grid" id="peopleGrid"></div>
+  </section>
+
+</main>
+
+<!-- OVERLAY: TASK DETAILS -->
+<div class="overlay-backdrop deets-overlay" id="taskDeetsOverlay" onclick="handleDeetsOverlayClick(event)">
+  <div class="deets-card" id="deetsCard" role="dialog" aria-modal="true" aria-labelledby="deetsTitle">
+    <button class="icon-close deets-close-btn" type="button" onclick="closeTaskDetails()" aria-label="Close task details">×</button>
+
+    <div class="card-head">
+      <div class="title-group">
+        <span class="task-title" id="deetsTitle">Task Name</span>
+        <span class="chip type-badge type-pill" id="deetsTypeBadge">Standard</span>
+        <div id="deetsTags" style="display:inline-flex; gap:4px; margin-left:4px;"></div>
+      </div>
+    </div>
+
+    <div id="deetsStandardBlock" class="deets-section-block">
+      <div class="field-group">
+        <span class="lbl">Assignees</span>
+        <div id="deetsStdAssignees" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:2px;"></div>
+      </div>
+      <div class="field-group"><span class="lbl">Description</span><div class="val-box" id="deetsDescription"></div></div>
+      <div class="field-group"><span class="lbl">Notes</span><div class="val-box" id="deetsStdNotes"></div></div>
+      <div class="meta-row"><div class="meta-item"><span class="lbl">Target Date</span><span class="val" id="deetsTargetDate"></span></div></div>
+    </div>
+
+    <div id="deetsStoreBlock" class="deets-section-block hidden">
+      <div class="meta-row">
+        <div class="meta-item"><span class="lbl">Store Code</span><span class="val" id="deetsStoreCode"></span></div>
+        <div class="meta-item"><span class="lbl">Product List Deadline</span><span class="val" id="deetsProdListDeadline"></span></div>
+        <div class="meta-item"><span class="lbl">Planogram Deadline</span><span class="val" id="deetsPlanoDeadline"></span></div>
+      </div>
+      <div class="field-group"><span class="lbl">Notes</span><div class="val-box" id="deetsStoreNotes"></div></div>
+    </div>
+
+    <div class="assets-strip">
+      <span class="file-chip" id="deetsFileChip">📄</span>
+      <div class="drive-links" id="deetsDriveLinks"></div>
+    </div>
+
+    <div class="cat-list" id="deetsCatList"></div>
+  </div>
+</div>
+
+<!-- OVERLAY: PERSON DETAILS -->
+<div class="overlay-backdrop deets-overlay" id="personDeetsOverlay" onclick="handlePersonDeetsOverlayClick(event)">
+  <div class="deets-card" id="personDeetsCard" role="dialog" aria-modal="true" aria-labelledby="personDeetsName">
+    <button class="icon-close deets-close-btn" type="button" onclick="closePersonDetails()" aria-label="Close person details">×</button>
+
+    <div class="card-head">
+      <div class="title-group person-deets-head">
+        <div class="person-avatar" id="personDeetsAvatar">--</div>
+        <div>
+          <span class="task-title" id="personDeetsName">Name</span>
+          <div class="person-position" id="personDeetsPosition">Position</div>
+        </div>
+      </div>
+      <button class="copy-chip" type="button" id="personDeetsEmail">✉ email</button>
+      <button class="directory-add" type="button" id="personDeetsEditBtn">✎ Edit</button>
+    </div>
+
+    <div class="person-categories" id="personDeetsCategories"></div>
+
+    <div class="person-deets-section">
+      <div class="person-deets-section-title">Pending <span class="person-deets-count" id="personDeetsPendingCount">0</span></div>
+      <div class="person-deets-list" id="personDeetsPendingList"></div>
+    </div>
+
+    <div class="person-deets-section">
+      <div class="person-deets-section-title">Completed <span class="person-deets-count" id="personDeetsCompletedCount">0</span></div>
+      <div class="person-deets-list" id="personDeetsCompletedList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+<!-- OVERLAY MODAL: TASK ENTRY -->
+<div class="overlay-backdrop scrim" id="taskEntryModal" onclick="handleModalScrimClick(event)">
+  <section class="modal" id="entryModalCard" role="dialog" aria-modal="true" aria-labelledby="entryModalTitle">
+    <header class="modal-head">
+      <div>
+        <div class="modal-title" id="entryModalTitle">New Task Item</div>
+        <div class="modal-meta">Fill in details and assign subtasks or categories</div>
+      </div>
+      <button class="icon-close close" type="button" onclick="closeCreateModal()" aria-label="Close task creation">×</button>
+    </header>
+
+    <div class="modal-body">
+      <aside class="left-aside">
+        <div class="field">
+          <div class="label">Type</div>
+          <select id="typeSelect" class="type-pill-select" onchange="setType(this.value)">
+            <option value="Standard" selected>Standard</option>
+            <option value="Ideal">Ideal</option>
+            <option value="Temporary">Temporary</option>
+          </select>
+        </div>
+      </aside>
+
+      <main class="right-content">
+        <div id="standardFields">
+          <section class="section">
+            <div class="section-head"><div class="section-title">Task Overview</div></div>
+            <div class="field"><div class="label">Title <span style="color:var(--red);">*</span></div><input id="stdTitle" class="input" placeholder="Name this task"></div>
+            <div class="field">
+              <div class="label">Assignees (Click to include/exclude)</div>
+              <div class="assignee-selector-group" id="stdAssigneePillGroup"></div>
+            </div>
+            <div class="two">
+              <div class="field"><div class="label">Target Date <span style="color:var(--red);">*</span></div><input id="stdDate" type="date" class="input"></div>
+              <div class="field"><div class="label">Tags (comma separated)</div><input id="stdTags" class="input" placeholder="e.g. Deck, Retail, Signage"></div>
+            </div>
+            <div class="field"><div class="label">Description</div><textarea id="stdDesc" class="input" placeholder="Brief details or scope..."></textarea></div>
+            <div class="field"><div class="label">Notes</div><textarea id="stdNotes" class="input" style="height:65px;" placeholder="Additional notes, instructions, or specs..."></textarea></div>
+          </section>
+
+          <section class="section">
+            <div class="section-head"><div class="section-title">Links & Files</div></div>
+            <div class="field"><div class="label">External Links (URL)</div><input id="stdLinks" class="input" placeholder="https://drive.google.com/..."></div>
+            <div class="field">
+              <div class="label">Upload File (Optional)</div>
+              <div class="file-input-wrapper">
+                <button type="button" class="upload-btn"><span id="stdFileName">Upload Attachment (PDF, DWG, XLSX, PNG)</span></button>
+                <input type="file" onchange="handleStdFileUpload(this)">
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-head"><div class="section-title">Subtasks</div><button type="button" class="btn-secondary" onclick="addStandardSubtaskInput()">+ Add Subtask</button></div>
+            <div class="subtask-builder" id="stdSubtasksContainer"></div>
+          </section>
+        </div>
+
+        <div id="specialFields" class="hidden">
+          <section class="section">
+            <div class="section-head"><div class="section-title">Store Lookup</div></div>
+            <div class="field">
+              <input id="storeSearch" class="input" placeholder="Search store code or name..." oninput="searchStores()">
+              <div id="storeResults" class="store-results" role="listbox"></div>
+            </div>
+            <div class="two">
+              <div class="field"><div class="label">Store Name</div><input id="store" class="input readonly" value="" readonly></div>
+              <div class="field"><div class="label">Store Code</div><input id="storeCode" class="input readonly" value="" readonly></div>
+            </div>
+            <div class="two">
+              <div class="field"><div class="label">Product List Deadline</div><input id="prodListDeadline" type="date" class="input"></div>
+              <div class="field"><div class="label">Planogram Deadline</div><input id="planoDeadline" type="date" class="input"></div>
+            </div>
+            <div class="field"><div class="label">Notes</div><textarea id="storeNotes" class="input" style="height:65px;" placeholder="Store specific instructions or design notes..."></textarea></div>
+          </section>
+
+          <section class="section">
+            <div class="section-head"><div class="section-title">Module Allocation File <span style="color:var(--red);">*</span></div></div>
+            <div class="field">
+              <div class="file-input-wrapper">
+                <button type="button" class="upload-btn"><span id="moduleFileName">Upload Module Allocation (PDF, DWG, XLSX)</span></button>
+                <input type="file" onchange="handleModuleUpload(this)">
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-head"><div class="section-title">Category Subtasks</div></div>
+            <div class="categories" id="entryCategories"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <footer class="modal-foot">
+      <div></div>
+      <div class="foot-actions">
+        <button class="cancel-btn" onclick="closeCreateModal()">Cancel</button>
+        <button class="save-btn" onclick="saveNewTask()">Save Task</button>
+      </div>
+    </footer>
+  </section>
+</div>
+
+<!-- OVERLAY MODAL: DIRECTORY ENTRY (add / edit / delete in one place) -->
+<div class="ref-modal" id="referenceEntryModal" onclick="if(event.target===this) closeReferenceEntry()">
+  <div class="ref-modal-card" id="refModalCard" role="dialog" aria-modal="true" aria-labelledby="refModalTitle">
+    <div class="ref-modal-head">
+      <div>
+        <h3 id="refModalTitle">Add directory entry</h3>
+        <p id="refModalHint">Add information to your selected directory.</p>
+      </div>
+      <button class="ref-close" type="button" onclick="closeReferenceEntry()" aria-label="Close">×</button>
+    </div>
+    <form class="ref-form" id="referenceEntryForm" onsubmit="saveReferenceEntry(event)">
+      <div id="referenceFormFields"></div>
+      <div class="ref-form-actions">
+        <button class="ref-delete" id="refDeleteBtn" type="button" style="display:none" onclick="deleteReferenceEntry()">Delete</button>
+        <button class="ref-cancel" type="button" onclick="closeReferenceEntry()">Cancel</button>
+        <button class="ref-save" type="submit">Save entry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* =================================================================
+   1. CONFIG
+   ================================================================= */
+// Paste your deployed Apps Script Web App URL here (Deploy > New deployment
+// > Web app > copy the URL). Leave it blank to keep using the local data
+// below instead of fetching from the Sheet.
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzz71yomP5H8bsZz0G0t9QFI0Fk3pmnYpoIiVNcKDy5hfNLjxG3wZ4HT5Ic4GeE9WZKyQ/exec';
+
+const CATEGORY_COLUMNS = [
+  { name: 'APP', label: 'Apple', assignee: '' }, { name: 'AUD', label: 'Audio', assignee: '' }, { name: 'CNC', label: 'Charging and Connectivity', assignee: '' },
+  { name: 'WAP', label: 'Watch and Peripherals', assignee: '' }, { name: 'MAC', label: 'Mac Accessories', assignee: '' }, { name: 'ENH', label: 'Enhancements', assignee: '' },
+  { name: 'IPH (w/o NPI)', label: 'iPhone without NPI', assignee: '' }, { name: 'IPH (w/ NPI)', label: 'iPhone with NPI', assignee: '' }, { name: 'IPD', label: 'iPad Accessories', assignee: '' }
+];
+// Category/task assignee choices are always derived live from the People
+// roster (never a second, hand-maintained list), so adding, editing, or
+// removing a team member instantly updates every assignee dropdown and
+// pill without the two ever drifting out of sync.
+const subtaskFlows = {
+  Ideal: ['For Product List', 'For SPS Planogram', 'For LTM Approval', 'For PMT Approval', 'For JAG Approval', 'For PGL Approval', 'For GDrive Upload'],
+  Temporary: ['For Product List', 'For SPS Planogram', 'For LTM Approval', 'For PGL Approval', 'For GDrive Upload']
+};
+// Per-category exceptions to the flows above — currently just APP under
+// Ideal tasks, which follows a shorter approval chain than every other
+// category. Mirrors the Sheet's own convention: this is read from a Type
+// literally named "appideal" (see Code.gs), not a separate Category column.
+const categoryFlowOverrides = {
+  Ideal: {
+    APP: ['For Product List', 'For SPS Planogram', 'For LTM Approval', 'For APP BM Approval', 'For PGL Approval', 'For GDrive Upload']
+  }
+};
+// Single source of truth for "what steps does this category, under this
+// task type, actually go through" — falls back to the shared per-type flow
+// when there's no category-specific override.
+function getCategorySteps(type, categoryName) {
+  const override = categoryFlowOverrides[type] && categoryFlowOverrides[type][categoryName];
+  return override || subtaskFlows[type] || [];
+}
+// Real store list comes from the Stores sheet — starts empty.
+const stores = [];
+const DONUT_R = 72;
+const DONUT_C = 2 * Math.PI * DONUT_R;
+const DONUT_GAP = 6; // px of arc length left as a visual gap between segments
+
+// "This month" for the People tab's pending/completed stats.
+const STATS_REF_DATE = new Date();
+
+// Real roster comes from the People sheet (or your own entries) — starts
+// empty so nothing fake shows up before you've added anyone.
+let people = [];
+
+let folders = [];
+
+let contactsList = [];
+
+let locations = [];
+
+let dirIdCounter = 100;
+
+/* =================================================================
+   2. SEED DATA
+   ================================================================= */
+function seedCategory(name, assignee, trueCount, stepCount) {
+  const checked = Array.from({ length: stepCount }, (_, i) => i < trueCount);
+  const timestamps = checked.map(c => c ? 'Synced' : null);
+  return { name, assignee, checked, timestamps, open: false };
+}
+function seedCategories(counts, stepCount) {
+  return CATEGORY_COLUMNS.map(c => seedCategory(c.name, c.assignee, counts[c.name] || 0, stepCount));
+}
+
+const tasks = [];
+
+let taskIdCounter = tasks.length + 1;
+let selectedStandardAssignees = [];
+// category name -> person short code. A category with no entry here means
+// "No Changes" — it's left out of the task entirely, not just unassigned.
+let selectedCategoryAssignees = {};
+let currentTaskId = null;
+let calYear = 2026, calMonth = 8, isCalendarView = false;
+let dashboardExpanded = false;
+let activeDashboardFilter = 'All';
+let taskSearchQuery = '';
+
+/* =================================================================
+   3. HELPERS
+   ================================================================= */
+function getTaskById(id) { return tasks.find(t => t.id === id); }
+function formatTimestamp() {
+  const now = new Date();
+  return now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+function getCategoryStatus(checkedArray, type, categoryName) {
+  const steps = getCategorySteps(type, categoryName);
+  const lastIndex = checkedArray.lastIndexOf(true);
+  if (lastIndex >= steps.length - 1) return { name: 'Completed', cls: 'complete' };
+  const cls = lastIndex >= 2 ? 'review' : (lastIndex === -1 ? 'pending' : 'progress');
+  return { name: steps[lastIndex + 1], cls };
+}
+function standardOverview(task) {
+  const next = task.subtasks.find(s => !s.done);
+  const doneCount = task.subtasks.filter(s => s.done).length;
+  const total = task.subtasks.length;
+  const text = next
+    ? `<span class="overview-label">Next Subtask:</span> <span class="overview-value">${next.text}</span>`
+    : `<span class="overview-value">${task.description}</span>`;
+  let badgeClass = 'pending', badgeText = 'Standard Task';
+  if (total > 0) {
+    badgeClass = doneCount === total ? 'complete' : 'progress';
+    badgeText = doneCount === total ? 'Completed' : `In Progress (${doneCount}/${total} Subtasks)`;
+  }
+  return { text, badgeClass, badgeText };
+}
+// A single task's own completion — distinct from computeTypeProgress, which
+// averages across every task of a type. Standard: subtasks done / total
+// (a task with none has nothing left pending, so it reads 100%). Ideal /
+// Temporary: checked steps / total steps across all of that task's categories.
+function taskProgressPercent(task) {
+  if (task.type === 'Standard') {
+    if (task.subtasks.length === 0) return 100;
+    return Math.round(task.subtasks.filter(s => s.done).length / task.subtasks.length * 100);
+  }
+  let total = 0, done = 0;
+  task.categories.forEach(c => { total += c.checked.length; done += c.checked.filter(Boolean).length; });
+  return total ? Math.round(done / total * 100) : 0;
+}
+// Continuous red(0%) → green(100%) gradient, reused for both the per-task
+// progress pill and the Temporary progress bar on the dashboard.
+function progressHue(pct) { return Math.round(Math.max(0, Math.min(100, pct)) / 100 * 120); }
+function progressPillStyle(pct) {
+  const hue = progressHue(pct);
+  return `background:hsl(${hue},80%,92%); color:hsl(${hue},68%,28%);`;
+}
+
+function computeTypeProgress(type) {
+  const list = tasks.filter(t => t.type === type);
+  let total = 0, done = 0;
+  if (type === 'Standard') {
+    list.forEach(t => { total += t.subtasks.length; done += t.subtasks.filter(s => s.done).length; });
+  } else {
+    list.forEach(t => t.categories.forEach(c => { total += c.checked.length; done += c.checked.filter(Boolean).length; }));
+  }
+  return total ? Math.round(done / total * 100) : 0;
+}
+// Smoothly tween a number displayed in an element's text content.
+function animateCount(el, to, suffix = '') {
+  if (!el) return;
+  const from = parseInt(el.dataset.val || '0', 10) || 0;
+  if (from === to) { el.textContent = to + suffix; el.dataset.val = to; return; }
+  const duration = 500, start = performance.now();
+  function step(now) {
+    const p = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - p, 3);
+    const val = Math.round(from + (to - from) * eased);
+    el.textContent = val + suffix;
+    if (p < 1) requestAnimationFrame(step); else el.dataset.val = to;
+  }
+  requestAnimationFrame(step);
+}
+
+/* =================================================================
+   3B. ACCESSIBILITY — keyboard activation + overlay focus management
+   Every overlay in this app opens and closes exclusively through
+   openOverlayA11y()/closeOverlayA11y(), and every div/span standing in
+   for a button goes through keyActivate() on keydown. This keeps focus
+   trapped inside whichever dialog is open, returns focus to whatever
+   triggered it on close, and makes Enter/Space work anywhere a click
+   handler works.
+   ================================================================= */
+const FOCUSABLE_SEL = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [role="button"], [tabindex]:not([tabindex="-1"])';
+let _a11yDialog = null;
+let _a11yLastFocused = null;
+
+function keyActivate(e, handler) {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  handler();
+}
+
+function _trapFocusKeydown(e) {
+  if (e.key !== 'Tab' || !_a11yDialog) return;
+  const focusable = [..._a11yDialog.querySelectorAll(FOCUSABLE_SEL)].filter(el => el.offsetParent !== null);
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+// Call right after adding the 'open' class. dialogEl is the inner
+// role="dialog" element (not the backdrop) so the trap only looks at
+// what's actually inside the visible card.
+function openOverlayA11y(dialogEl) {
+  _a11yLastFocused = document.activeElement;
+  _a11yDialog = dialogEl;
+  document.addEventListener('keydown', _trapFocusKeydown);
+  setTimeout(() => {
+    const target = dialogEl.querySelector(FOCUSABLE_SEL) || dialogEl;
+    target.focus();
+  }, 30);
+}
+// Call right after removing the 'open' class.
+function closeOverlayA11y() {
+  document.removeEventListener('keydown', _trapFocusKeydown);
+  _a11yDialog = null;
+  if (_a11yLastFocused && document.contains(_a11yLastFocused)) _a11yLastFocused.focus();
+  _a11yLastFocused = null;
+}
+
+/* =================================================================
+   4. DASHBOARD
+   ================================================================= */
+function toggleDashboardMode() {
+  dashboardExpanded = !dashboardExpanded;
+  renderDashboard();
+}
+
+function selectDashboardFilter(type) {
+  // Clicking the already-active type card again resets back to the
+  // full distribution view instead of doing nothing.
+  if (type === activeDashboardFilter && type !== 'All') type = 'All';
+  activeDashboardFilter = type;
+  dashboardExpanded = type !== 'All';
+  renderDashboard();
+  renderListView();
+}
+
+function updateFilterChips() {
+  document.querySelectorAll('.filter-chip').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === activeDashboardFilter));
+  document.querySelectorAll('.legend-item').forEach(el => el.classList.toggle('active', el.dataset.legend === activeDashboardFilter));
+}
+
+function renderDashboard() {
+  const totalCount = tasks.length;
+  const counts = { Standard: 0, Ideal: 0, Temporary: 0 };
+  tasks.forEach(t => counts[t.type]++);
+
+  // Segment geometry: each type gets an arc slot proportional to its task count.
+  const order = ['Standard', 'Ideal', 'Temporary'];
+  let cursor = 0;
+  const segments = {};
+  order.forEach(type => {
+    const share = totalCount ? counts[type] / totalCount : 0;
+    const length = Math.max(0, share * DONUT_C - DONUT_GAP);
+    segments[type] = { start: cursor, length };
+    cursor += share * DONUT_C;
+  });
+
+  order.forEach(type => {
+    const el = document.getElementById(`seg${type}`);
+    const seg = segments[type];
+    if (!dashboardExpanded) {
+      el.setAttribute('stroke-dasharray', `${seg.length} ${DONUT_C - seg.length}`);
+      el.setAttribute('stroke-dashoffset', `${-seg.start}`);
+      el.style.opacity = 1;
+    } else {
+      const progress = computeTypeProgress(type);
+      const fillLen = Math.max(0, seg.length * (progress / 100));
+      el.setAttribute('stroke-dasharray', `${fillLen} ${DONUT_C - fillLen}`);
+      el.setAttribute('stroke-dashoffset', `${-seg.start}`);
+      el.style.opacity = counts[type] ? 1 : .25;
+    }
+  });
+
+  const donutVal = document.getElementById('donutVal');
+  const donutTitle = document.getElementById('donutTitle');
+  const heading = document.getElementById('dashPanelHeading');
+  const breakdown = document.getElementById('dashBreakdownContent');
+
+  if (!dashboardExpanded) {
+    donutTitle.textContent = 'Total Tasks';
+    animateCount(donutVal, totalCount);
+    heading.textContent = 'Task type distribution';
+    breakdown.innerHTML = `
+      <div class="dash-mode-copy">Click the chart to see completion progress per type, or pick a category below.</div>
+      <div class="dash-breakdown-grid">
+        ${order.map((type, i) => {
+          const rowPct = computeTypeProgress(type);
+          const rowColor = type === 'Standard' ? '#94a3b8' : (type === 'Ideal' ? 'var(--purple)' : 'var(--accent)');
+          return `
+          <div class="dash-progress-row${type === activeDashboardFilter ? ' active' : ''}" role="button" tabindex="0" aria-label="Filter by ${type}" style="animation-delay:${i * 40}ms" onclick="selectDashboardFilter('${type}')" onkeydown="keyActivate(event, () => selectDashboardFilter('${type}'))">
+            <div class="dash-row-header"><span class="chip type-pill ${type.toLowerCase()}">${type}</span><span class="dash-row-count" style="color:${rowColor};">${rowPct}%</span></div>
+            <div class="progress-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${rowPct}%; background:${rowColor};"></div></div></div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } else {
+    donutTitle.textContent = 'Avg Progress';
+    const typesToShow = activeDashboardFilter === 'All' ? order : [activeDashboardFilter];
+    const avgShown = Math.round(typesToShow.reduce((s, t) => s + computeTypeProgress(t), 0) / typesToShow.length);
+    animateCount(donutVal, avgShown, '%');
+    heading.textContent = `Completion progress${activeDashboardFilter !== 'All' ? ' — ' + activeDashboardFilter : ' per type'}`;
+    breakdown.innerHTML = `
+      <div class="dash-breakdown-grid">
+        ${typesToShow.map((type, i) => {
+          const pct = computeTypeProgress(type);
+          const colorVar = type === 'Standard' ? '#94a3b8' : (type === 'Ideal' ? 'var(--purple)' : 'var(--accent)');
+          return `
+          <div class="dash-progress-row${type === activeDashboardFilter ? ' active' : ''}" role="button" tabindex="0" aria-label="Filter by ${type}" style="animation-delay:${i * 40}ms" onclick="selectDashboardFilter('${type}')" onkeydown="keyActivate(event, () => selectDashboardFilter('${type}'))">
+            <div class="dash-row-header">
+              <span style="display:flex; align-items:center; gap:6px;"><span class="chip type-pill ${type.toLowerCase()}">${type}</span> ${counts[type]} tasks</span>
+              <span style="color:${colorVar}; font-weight:800;">${pct}%</span>
+            </div>
+            <div class="progress-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%; background:${colorVar};"></div></div></div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  updateFilterChips();
+}
+
+/* =================================================================
+   5. TASK LIST
+   ================================================================= */
+function setTaskSearch(v) { taskSearchQuery = v || ''; renderListView(); }
+function clearTaskSearch() { const i = document.getElementById('taskSearch'); if (i) i.value = ''; taskSearchQuery = ''; renderListView(); }
+
+function updateWorkspaceMeta(count) {
+  const meta = document.getElementById('workspaceMeta');
+  if (!meta) return;
+  const filterName = activeDashboardFilter === 'All' ? 'all task types' : activeDashboardFilter;
+  const searchNote = taskSearchQuery ? ` matching "${taskSearchQuery}"` : '';
+  meta.textContent = `Showing ${count} of ${tasks.length} · ${filterName}${searchNote}`;
+}
+
+// Task Deets overlay shows two Drive links pulled from the Stores sheet
+// (matched by store code) — "Back Up" and "Branch" — for Ideal/Temporary
+// tasks. Always shows both, even when a store has no link set, so it's
+// clear the link is genuinely missing rather than the lookup having
+// silently failed.
+function deetsStoreLinksHtml(task) {
+  const store = stores.find(s => s.code === task.code) || {};
+  const renderLink = (url, label) => url
+    ? `<a href="${escHtml(url)}" target="_blank" rel="noopener" class="link-chip">${label} ↗</a>`
+    : `<span class="link-chip link-chip-empty" title="No ${escHtml(label)} link set for this store">${label}: No link Attached</span>`;
+  return renderLink(store.backupUrl, 'Back Up') + renderLink(store.branchUrl, 'Branch');
+}
+
+// Small status badge shown next to a task's name while it's mid-flight to
+// the Sheet (optimistic create) or if that save failed outright. Synced
+// tasks (the normal case) render nothing here.
+function syncBadgeHtml(task) {
+  if (task._syncing) return '<span class="chip sync-badge syncing" title="Saving to Google Sheets…">Syncing…</span>';
+  if (task._syncFailed) return '<span class="chip sync-badge sync-failed" title="This task only exists on this device — the Sheet save failed.">⚠ Not saved</span>';
+  return '';
+}
+
+function taskCardHTML(task, index) {
+  const delay = Math.min(index, 8) * 30;
+  const pct = taskProgressPercent(task);
+  if (task.type === 'Standard') {
+    const ov = standardOverview(task);
+    return `
+      <div class="child-card" id="row-${task.id}" role="button" tabindex="0" aria-label="Open ${escHtml(task.title)}" style="animation-delay:${delay}ms" onclick="openTaskDetails('${task.id}')" onkeydown="keyActivate(event, () => openTaskDetails('${task.id}'))">
+        <div class="matrix-table-wrap">
+        <table class="matrix-table">
+          <thead><tr>
+            <th class="cell-type-pill"><div class="cell-type-pill-inner"><span class="chip type-pill standard">Standard</span><span class="chip progress-pill" style="${progressPillStyle(pct)}">${pct}%</span></div></th>
+            <th colspan="9" class="header-cat-wide">GENERAL WORKFLOW DETAILS — Target: ${task.date}</th>
+          </tr></thead>
+          <tbody><tr>
+            <td class="cell-task-name">${task.title}${syncBadgeHtml(task)}</td>
+            <td colspan="9"><div class="standard-overview-row">
+              <span class="standard-overview-text">${ov.text}</span>
+              <div class="standard-overview-right">
+                <span class="chip status-badge ${ov.badgeClass}" style="width:auto; padding:5px 12px;">${ov.badgeText}</span>
+              </div>
+            </div></td>
+          </tr></tbody>
+        </table>
+        </div>
+        <div class="compact-task-table">
+          <div class="mobile-task-top">
+            <div class="mobile-task-left">
+              <span class="mobile-task-name">${task.title}${syncBadgeHtml(task)}</span>
+              <span class="chip type-pill standard">Standard</span>
+            </div>
+            <span class="chip progress-pill" style="${progressPillStyle(pct)}">${pct}%</span>
+          </div>
+          <div class="compact-task-standard-row">
+            <span class="standard-overview-text">${ov.text}</span>
+            <span class="chip status-badge ${ov.badgeClass}" style="width:auto; padding:5px 12px;">${ov.badgeText}</span>
+          </div>
+        </div>
+        <div class="mobile-task-card">
+          <div class="mobile-task-top">
+            <div class="mobile-task-left">
+              <span class="mobile-task-name">${task.title}${syncBadgeHtml(task)}</span>
+              <span class="chip type-pill standard">Standard</span>
+            </div>
+            <span class="chip progress-pill" style="${progressPillStyle(pct)}">${pct}%</span>
+          </div>
+          <p class="mobile-task-sub">${ov.text}</p>
+          <div class="mobile-task-cats">
+            <div class="mobile-cat-block">
+              <span class="mobile-cat-name">Status</span>
+              <span class="chip status-badge ${ov.badgeClass}">${ov.badgeText}</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+  const catData = CATEGORY_COLUMNS.map(c => {
+    const cat = task.categories.find(x => x.name === c.name);
+    const status = cat ? getCategoryStatus(cat.checked, task.type, c.name) : { cls: 'pending', name: 'Not tracked' };
+    return { name: c.name, fullName: c.label || '', cls: status.cls, label: status.name };
+  });
+  const headers = catData.map(c => `<th class="header-cat" title="${escHtml(c.fullName)}">${c.name}</th>`).join('');
+  const cells = catData.map(c => `<td><span class="chip status-badge ${c.cls}" data-cat="${c.name}">${c.label}</span></td>`).join('');
+  const mobileCats = catData.map(c => `
+      <div class="mobile-cat-block">
+        <span class="mobile-cat-name">${c.name}</span>
+        <span class="chip status-badge ${c.cls}">${c.label}</span>
+      </div>`).join('');
+  return `
+    <div class="child-card" id="row-${task.id}" role="button" tabindex="0" aria-label="Open ${escHtml(task.storeName)}" style="animation-delay:${delay}ms" onclick="openTaskDetails('${task.id}')" onkeydown="keyActivate(event, () => openTaskDetails('${task.id}'))">
+      <div class="matrix-table-wrap">
+      <table class="matrix-table">
+        <thead><tr><th class="cell-type-pill"><div class="cell-type-pill-inner"><span class="chip type-pill ${task.type.toLowerCase()}">${task.type}</span><span class="chip progress-pill" style="${progressPillStyle(pct)}">${pct}%</span></div></th>${headers}</tr></thead>
+        <tbody><tr><td class="cell-task-name">${task.storeName}${syncBadgeHtml(task)}</td>${cells}</tr></tbody>
+      </table>
+      </div>
+      <div class="compact-task-table">
+        <div class="mobile-task-top">
+          <div class="mobile-task-left">
+            <span class="mobile-task-name">${task.storeName}${syncBadgeHtml(task)}</span>
+            <span class="chip type-pill ${task.type.toLowerCase()}">${task.type}</span>
+          </div>
+          <span class="chip progress-pill" style="${progressPillStyle(pct)}">${pct}%</span>
+        </div>
+        <table class="matrix-table compact-cat-table">
+          <thead><tr>${headers}</tr></thead>
+          <tbody><tr>${cells}</tr></tbody>
+        </table>
+      </div>
+      <div class="mobile-task-card">
+        <div class="mobile-task-top">
+          <div class="mobile-task-left">
+            <span class="mobile-task-name">${task.storeName}${syncBadgeHtml(task)}</span>
+            <span class="chip type-pill ${task.type.toLowerCase()}">${task.type}</span>
+          </div>
+          <span class="chip progress-pill" style="${progressPillStyle(pct)}">${pct}%</span>
+        </div>
+        <div class="mobile-task-cats">${mobileCats}</div>
+      </div>
+    </div>`;
+}
+
+function renderListView() {
+  const container = document.getElementById('childCardListContainer');
+  const query = taskSearchQuery.trim().toLowerCase();
+  const typeFiltered = activeDashboardFilter === 'All' ? tasks : tasks.filter(t => t.type === activeDashboardFilter);
+  const filtered = typeFiltered.filter(t => {
+    if (!query) return true;
+    const haystack = [t.title, t.type, t.code, t.description, t.notes, ...(t.tags || []), ...(t.assignees || [])].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(query);
+  });
+
+  container.innerHTML = filtered.length
+    ? filtered.map(taskCardHTML).join('')
+    : `<div class="empty-state">
+        <div class="empty-state-title">No matching tasks</div>
+        <div class="empty-state-copy">Try another search term or reset the task type filter.</div>
+        <button type="button" class="btn-secondary-alt" onclick="clearTaskSearch(); selectDashboardFilter('All')">Reset filters</button>
+      </div>`;
+  updateWorkspaceMeta(filtered.length);
+}
+
+/* =================================================================
+   6. CALENDAR
+   ================================================================= */
+function createCalCell(dayNum, isOtherMonth, isToday = false) {
+  const cell = document.createElement('div');
+  cell.className = `cal-cell ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}`;
+  const numSpan = document.createElement('div');
+  numSpan.className = 'cal-day-num';
+  numSpan.textContent = dayNum;
+  cell.appendChild(numSpan);
+  return cell;
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('calGrid');
+  const titleEl = document.getElementById('calMonthTitle');
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  titleEl.textContent = `${monthNames[calMonth]} ${calYear}`;
+
+  const weekdays = Array.from(grid.querySelectorAll('.cal-weekday'));
+  grid.innerHTML = '';
+  weekdays.forEach(w => grid.appendChild(w));
+
+  const firstDayIndex = new Date(calYear, calMonth, 1).getDay();
+  const totalDays = new Date(calYear, calMonth + 1, 0).getDate();
+  const prevTotalDays = new Date(calYear, calMonth, 0).getDate();
+  const today = new Date();
+  const isCurrentMonthYear = today.getFullYear() === calYear && today.getMonth() === calMonth;
+
+  for (let i = firstDayIndex - 1; i >= 0; i--) grid.appendChild(createCalCell(prevTotalDays - i, true));
+
+  for (let d = 1; d <= totalDays; d++) {
+    const isToday = isCurrentMonthYear && d === today.getDate();
+    const cell = createCalCell(d, false, isToday);
+    const dateKey = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+    tasks.forEach(task => {
+      const matches = [];
+      if (task.type === 'Standard' && task.date === dateKey) matches.push({ label: task.title, task });
+      if (task.type !== 'Standard') {
+        if (task.prodListDeadline === dateKey) matches.push({ label: `${task.storeName} (Prod List)`, task });
+        if (task.planoDeadline === dateKey) matches.push({ label: `${task.storeName} (Planogram)`, task });
+      }
+      matches.forEach(m => {
+        const chip = document.createElement('div');
+        chip.className = `cal-event-chip ${m.task.type.toLowerCase()}`;
+        chip.textContent = m.label;
+        chip.onclick = (e) => { e.stopPropagation(); openTaskDetails(m.task.id); };
+        cell.appendChild(chip);
+      });
+    });
+    grid.appendChild(cell);
+  }
+
+  const rendered = firstDayIndex + totalDays;
+  const remaining = rendered <= 35 ? 35 - rendered : 42 - rendered;
+  for (let d = 1; d <= remaining; d++) grid.appendChild(createCalCell(d, true));
+}
+
+function changeMonth(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; } else if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+function goToCurrentMonth() { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); renderCalendar(); }
+
+// Task List shown directly below the calendar box. The Calendar tab has
+// no search/filter controls of its own (those live on the Dashboard
+// toolbar, which is hidden here), so this simply lists every task using
+// the same card markup as the Dashboard's list view.
+function renderCalendarTaskList() {
+  const container = document.getElementById('calendarTaskListContainer');
+  if (!container) return;
+  container.innerHTML = tasks.length
+    ? tasks.map(taskCardHTML).join('')
+    : `<div class="empty-state">
+        <div class="empty-state-title">No tasks yet</div>
+        <div class="empty-state-copy">Create a task to see it listed here and plotted on the calendar.</div>
+      </div>`;
+}
+
+/* =================================================================
+   7. NAVIGATION / THEME / TOASTS
+   ================================================================= */
+function navigateWorkspace(target) {
+  document.querySelectorAll('.sidebar-nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.nav === target));
+
+  // The chart, task-type cards, and task searcher/filter toolbar only
+  // do anything on the Dashboard/List workspace — Calendar, Directories,
+  // and People have nothing wired to them. Rather than let them sit
+  // there eating vertical space on those views, hide them outright so
+  // the section content gets the full screen.
+  const onDashboard = target === 'dashboard';
+  document.getElementById('dashboardSection').classList.toggle('hidden', !onDashboard);
+  document.querySelector('.workspace-toolbar').classList.toggle('hidden', !onDashboard);
+
+  document.getElementById('listViewSection').classList.toggle('hidden', target !== 'dashboard');
+  document.getElementById('calendarViewSection').classList.toggle('hidden', target !== 'calendar');
+  document.getElementById('directoriesSection').classList.toggle('hidden', target !== 'directories');
+  document.getElementById('peopleSection').classList.toggle('hidden', target !== 'people');
+
+  if (target === 'calendar') { renderCalendar(); renderCalendarTaskList(); }
+
+  const anchors = { dashboard: 'dashboardSection', calendar: 'calendarViewSection', directories: 'directoriesSection', people: 'peopleSection' };
+  document.getElementById(anchors[target])?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ---------- Directories: shared helpers ---------- */
+function copyToClipboard(text) {
+  navigator.clipboard?.writeText(text)
+    .then(() => showToast(`Copied "${text}" to clipboard.`))
+    .catch(() => showToast('Could not copy — copy it manually.'));
+}
+
+// Accepts either the "?q=...&output=embed" pattern (used by this app's own
+// Add-location form) or a pasted "/maps/embed?pb=..." share URL. The first
+// case converts cleanly to a normal Maps link; the second is opened as-is,
+// since a plain "pb=" embed payload can't be reversed into a search URL.
+function toMapsLink(embedUrl) {
+  if (!embedUrl) return '#';
+  if (embedUrl.includes('output=embed')) {
+    return embedUrl.replace(/[?&]output=embed/, '');
+  }
+  return embedUrl;
+}
+
+// Only render a live map preview for a real Google Maps URL — a bad or
+// placeholder link just falls back to the "Open map" button below it.
+function locationPreviewUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('google.com') || u.hostname.includes('googleusercontent.com')) return url;
+  } catch (e) { /* not a valid URL — no preview */ }
+  return '';
+}
+
+function escHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
+}
+
+/* ---------- Directories: tabs + card-based CRUD ---------- */
+let directoryTab = 'folders';
+
+// Sends a write to the Apps Script backend. Returns { ok:true, data } on
+// success, { ok:false, reason:'no-url' } if APPS_SCRIPT_URL isn't set (so
+// callers can fall back to local-only editing), or { ok:false, reason:
+// 'error', error } if the request reached the backend but failed — that
+// last case is the one worth surfacing, since it means the edit did NOT
+// make it into the Sheet.
+// Uses text/plain as the content type on purpose: a real JSON content type
+// makes the browser send a CORS preflight (OPTIONS) request first, which
+// Apps Script Web Apps don't handle — text/plain skips the preflight, and
+// doPost() still parses the body as JSON regardless of the declared type.
+async function postToBackend(action, payload) {
+  if (!APPS_SCRIPT_URL) return { ok: false, reason: 'no-url' };
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, ...payload })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return { ok: true, data };
+  } catch (err) {
+    console.error('Backend write failed:', err);
+    return { ok: false, reason: 'error', error: err };
+  }
+}
+
+// Rebuilds the payload createTask_ expects from a local task object —
+// used to retry a task that failed to sync (there's no separate stored
+// copy of the original form payload, so this reconstructs it from what's
+// currently on the task).
+function taskToCreatePayload(task) {
+  if (task.type === 'Standard') {
+    return {
+      type: 'Standard', title: task.title, assignees: task.assignees, date: task.date,
+      tags: task.tags, description: task.description, notes: task.notes, links: task.links,
+      fileName: task.fileName, subtasks: task.subtasks.map(s => s.text)
+    };
+  }
+  const categoryAssignees = {};
+  (task.categories || []).forEach(c => { categoryAssignees[c.name] = c.assignee; });
+  return {
+    type: task.type, storeName: task.storeName, code: task.code, tags: task.tags,
+    prodListDeadline: task.prodListDeadline, planoDeadline: task.planoDeadline,
+    notes: task.notes, fileName: task.fileName, categoryAssignees
+  };
+}
+
+function renderAllTaskViews() {
+  renderListView();
+  renderDashboard();
+  renderCalendar();
+  renderCalendarTaskList();
+}
+
+// Manual "Force Sync" — retries any task that failed to save (or is stuck
+// mid-save), then re-pulls the Sheet so anything edited there directly
+// shows up here too, without waiting for a full page reload.
+async function forceSync() {
+  if (!APPS_SCRIPT_URL) { showToast('Add your Apps Script URL in CONFIG first.'); return; }
+  const btn = document.getElementById('forceSyncBtn');
+  if (btn) { btn.disabled = true; btn.classList.add('syncing'); }
+
+  const pending = tasks.filter(t => t._syncFailed || t._syncing);
+  if (pending.length) {
+    showToast(`Syncing ${pending.length} task${pending.length > 1 ? 's' : ''}…`);
+    pending.forEach(t => { t._syncing = true; delete t._syncFailed; });
+    renderAllTaskViews();
+    for (const t of pending) {
+      const result = await postToBackend('createTask', { data: taskToCreatePayload(t) });
+      delete t._syncing;
+      if (result.ok && result.data && result.data.id) t.id = result.data.id;
+      else t._syncFailed = true;
+    }
+  }
+
+  const refreshed = await loadLiveData();
+  renderAllTaskViews();
+
+  if (btn) { btn.disabled = false; btn.classList.remove('syncing'); }
+  const stillFailed = tasks.filter(t => t._syncFailed).length;
+  if (stillFailed) showToast(`${stillFailed} task${stillFailed > 1 ? 's' : ''} still couldn't sync — check your connection.`);
+  else showToast(refreshed ? 'Synced with Google Sheets ✓' : 'Could not reach the Apps Script backend.');
+}
+
+// If APPS_SCRIPT_URL is set, replaces every local array/object below with
+// live data from the Sheet (read-only for now — writes still only update
+// this page and localStorage). Falls back silently to local data if it's
+// blank, and falls back with a toast if the fetch fails (e.g. wrong URL,
+// not deployed with "Anyone" access, or setupSpreadsheet() hasn't run yet).
+async function loadLiveData() {
+  if (!APPS_SCRIPT_URL) return false;
+  try {
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=all`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    people.length = 0; people.push(...(data.people || []));
+    folders.length = 0; folders.push(...(data.folders || []));
+    contactsList.length = 0; contactsList.push(...(data.contacts || []));
+    locations.length = 0; locations.push(...(data.locations || []));
+    tasks.length = 0; tasks.push(...(data.tasks || []));
+
+    CATEGORY_COLUMNS.length = 0;
+    CATEGORY_COLUMNS.push(...(data.categoryDefaults || []));
+
+    Object.keys(subtaskFlows).forEach(k => delete subtaskFlows[k]);
+    Object.assign(subtaskFlows, data.subtaskFlows || {});
+
+    Object.keys(categoryFlowOverrides).forEach(k => delete categoryFlowOverrides[k]);
+    Object.assign(categoryFlowOverrides, data.categoryFlowOverrides || {});
+
+    stores.length = 0; stores.push(...(data.stores || []));
+
+    return true;
+  } catch (err) {
+    console.warn('Live data fetch failed, falling back to local data:', err);
+    showToast('Could not reach the Apps Script backend — showing local data instead.');
+    return false;
+  }
+}
+
+function directoryCollection(type) {
+  if (type === 'folders') return folders;
+  if (type === 'categories') return CATEGORY_COLUMNS;
+  if (type === 'contacts') return contactsList;
+  if (type === 'locations') return locations;
+  if (type === 'people') return people;
+  return [];
+}
+
+// Folders / contacts / locations are freely editable; category *names and
+// assignees* are too, but the seeded CATEGORY_COLUMNS list stays the source
+// of truth for the dashboard's category columns, so we persist just the
+// overrides (code is locked, so it's always the match key).
+function persistDirectoryOverrides() {
+  try {
+    localStorage.setItem('sp-directories', JSON.stringify({
+      folders, contactsList, locations, people,
+      categoryOverrides: CATEGORY_COLUMNS.map(c => ({ name: c.name, label: c.label, assignee: c.assignee }))
+    }));
+  } catch (e) { /* storage unavailable — edits still work for this session */ }
+}
+
+(function loadDirectoryOverrides() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('sp-directories') || 'null'); } catch (e) { saved = null; }
+  if (!saved) return;
+  if (Array.isArray(saved.folders)) { folders.length = 0; folders.push(...saved.folders); }
+  if (Array.isArray(saved.contactsList)) { contactsList.length = 0; contactsList.push(...saved.contactsList); }
+  if (Array.isArray(saved.locations)) { locations.length = 0; locations.push(...saved.locations); }
+  if (Array.isArray(saved.people)) { people.length = 0; people.push(...saved.people); }
+  const categoryOverrides = saved.categoryOverrides || saved.categoryAssignees; // categoryAssignees = pre-Name-field saves
+  if (Array.isArray(categoryOverrides)) {
+    categoryOverrides.forEach(sc => {
+      const match = CATEGORY_COLUMNS.find(c => c.name === sc.name);
+      if (match) { match.assignee = sc.assignee; if (sc.label) match.label = sc.label; }
+      else CATEGORY_COLUMNS.push({ name: sc.name, label: sc.label || sc.name, assignee: sc.assignee });
+    });
+  }
+})();
+
+function setDirectoryTab(tab) {
+  directoryTab = tab;
+  document.querySelectorAll('[data-directory-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.directoryTab === tab));
+  renderDirectories();
+}
+
+function openReferenceEntry(type = directoryTab, index = null) {
+  const isEdit = index !== null && index !== undefined && index !== '';
+  const collection = directoryCollection(type);
+  const existing = isEdit ? collection[index] : null;
+  const titleMap = { folders: 'Folder', categories: 'Category', contacts: 'Contact', locations: 'Location', people: 'Team Member' };
+  const hintMap = {
+    folders: 'Save folder names, clickable links, and tags.',
+    categories: 'Add a category and assign its default team member.',
+    contacts: 'Store contact details with one-click copy actions.',
+    locations: 'Add a map URL with a live preview and a Google Maps link.',
+    people: "Set the team member's short code, name, position, avatar colors, and email."
+  };
+  document.getElementById('refModalTitle').textContent = (isEdit ? 'Edit ' : 'Add ') + (titleMap[type] || 'Entry');
+  document.getElementById('refModalHint').textContent = hintMap[type] || '';
+  const fields = document.getElementById('referenceFormFields');
+  const tagField = `<label>Tags<input name="tags" placeholder="Tag1, Tag2, Tag3" value="${existing ? escHtml((existing.tags || []).join(', ')) : ''}"></label>`;
+  if (type === 'folders') fields.innerHTML = `<div class="ref-form-grid"><label>Name<input name="name" required placeholder="Folder name" value="${existing ? escHtml(existing.name) : ''}"></label><label>Link<input name="url" type="url" required placeholder="https://..." value="${existing ? escHtml(existing.url) : ''}"></label></div>${tagField}`;
+  if (type === 'categories') fields.innerHTML = `<div class="ref-form-grid"><label>Category Code<input name="name" required placeholder="e.g. APP" value="${existing ? escHtml(existing.name) : ''}" ${existing ? 'readonly' : ''}></label><label>Category Name<input name="label" required placeholder="e.g. Apple" value="${existing ? escHtml(existing.label || '') : ''}"></label></div><div class="ref-form-grid"><label>Default Assignee<select name="assignee" required>${people.map(m => `<option value="${escHtml(m.id)}" ${m.id === (existing ? existing.assignee : people[0]?.id) ? 'selected' : ''}>${escHtml(personCode(m))} — ${escHtml(m.name)}</option>`).join('')}</select></label></div><div class="empty-note">Applies to new tasks going forward — existing tasks keep the categories they were created with.</div>`;
+  if (type === 'contacts') fields.innerHTML = `<div class="ref-form-grid"><label>Name<input name="name" required placeholder="Full name" value="${existing ? escHtml(existing.name) : ''}"></label><label>Position<input name="position" placeholder="Position" value="${existing ? escHtml(existing.position || '') : ''}"></label></div><div class="ref-form-grid"><label>Contact Number<input name="phone" type="tel" placeholder="+63 917 555 0000" value="${existing ? escHtml(existing.phone || '') : ''}"></label><label>Email Address<input name="email" type="email" placeholder="name@example.com" value="${existing ? escHtml(existing.email || '') : ''}"></label></div>`;
+  if (type === 'locations') fields.innerHTML = `<div class="ref-form-grid"><label>Name<input name="name" required placeholder="Location name" value="${existing ? escHtml(existing.name) : ''}"></label><label>Map Embed URL<input name="mapUrl" type="url" required placeholder="https://www.google.com/maps?q=...&output=embed" value="${existing ? escHtml(existing.mapUrl) : ''}"></label></div>${tagField}`;
+  if (type === 'people') fields.innerHTML = `<div class="ref-form-grid"><label>Short Code${isEdit ? ' <span class="field-lock-note">(locked)</span>' : ''}<input name="id" required maxlength="4" style="text-transform:uppercase" placeholder="e.g. RCZ" value="${existing ? escHtml(existing.id) : ''}" ${isEdit ? 'readonly' : ''}></label><label>Name<input name="name" required placeholder="Full name" value="${existing ? escHtml(existing.name) : ''}"></label></div><div class="ref-form-grid"><label>Position<input name="position" placeholder="Position" value="${existing ? escHtml(existing.position || '') : ''}"></label><label>Email Address<input name="email" type="email" placeholder="name@example.com" value="${existing ? escHtml(existing.email || '') : ''}"></label></div><div class="ref-form-grid"><label>Avatar Color<input name="bg" type="color" value="${existing && existing.bg ? escHtml(existing.bg) : '#64748b'}"></label><label>Text Color<input name="txt" type="color" value="${existing && existing.txt ? escHtml(existing.txt) : '#ffffff'}"></label></div>${!isEdit ? `<div class="empty-note">Short codes can't be changed after creation — they're what links this person to tasks and category assignments.</div>` : ''}`;
+  const form = document.getElementById('referenceEntryForm');
+  form.dataset.type = type;
+  form.dataset.editIndex = isEdit ? index : '';
+  document.getElementById('refDeleteBtn').style.display = isEdit ? 'inline-flex' : 'none';
+  document.getElementById('referenceEntryModal').classList.add('open');
+  openOverlayA11y(document.getElementById('refModalCard'));
+}
+
+function closeReferenceEntry() {
+  document.getElementById('referenceEntryModal')?.classList.remove('open');
+  closeOverlayA11y();
+}
+
+async function saveReferenceEntry(event) {
+  event.preventDefault();
+  const form = event.currentTarget, type = form.dataset.type, fd = new FormData(form), data = Object.fromEntries(fd.entries());
+  if (type === 'folders' || type === 'locations') data.tags = data.tags ? data.tags.split(',').map(x => x.trim()).filter(Boolean) : [];
+  const collection = directoryCollection(type);
+  const editIndex = form.dataset.editIndex;
+  const isEdit = editIndex !== '' && editIndex !== undefined;
+
+  // People are keyed by a manually-typed short code (not the shared
+  // dir-### counter used for folders/contacts/locations). It's required,
+  // unique, and locked once set so existing task/category assignments
+  // never silently point at a renamed or reused code.
+  if (type === 'people') {
+    if (isEdit) {
+      data.id = collection[Number(editIndex)].id;
+    } else {
+      const code = (data.id || '').trim().toUpperCase();
+      if (!code) { showToast('Short code is required.'); return; }
+      if (people.some(p => p.id === code)) { showToast(`Short code "${code}" is already in use.`); return; }
+      data.id = code;
+    }
+  }
+
+  const result = await postToBackend('saveDirectoryEntry', { type, index: isEdit ? Number(editIndex) : null, data });
+  if (!result.ok && result.reason === 'error') {
+    showToast(`Could not save to Google Sheets: ${result.error.message}`);
+    return; // don't touch local state — what's on screen should match what's actually saved
+  }
+
+  if (isEdit) {
+    collection[Number(editIndex)] = { ...collection[Number(editIndex)], ...data };
+  } else {
+    if (type !== 'people') data.id = `dir-${dirIdCounter++}`;
+    collection.push(data);
+  }
+  persistDirectoryOverrides();
+  if (type === 'categories' || type === 'people') renderPeople();
+  renderDirectories();
+  closeReferenceEntry();
+  form.reset();
+  showToast(result.ok ? 'Saved to Google Sheets ✓' : 'Saved locally only — add your Apps Script URL in CONFIG to sync to Sheets.');
+}
+
+async function deleteReferenceEntry() {
+  const form = document.getElementById('referenceEntryForm');
+  const type = form.dataset.type, editIndex = form.dataset.editIndex;
+  if (editIndex === '' || editIndex === undefined) return;
+  const index = Number(editIndex);
+  const collection = directoryCollection(type);
+  const removedId = type === 'people' ? collection[index]?.id : null;
+
+  const result = await postToBackend('deleteDirectoryEntry', { type, index });
+  if (!result.ok && result.reason === 'error') {
+    showToast(`Could not delete from Google Sheets: ${result.error.message}`);
+    return;
+  }
+
+  collection.splice(index, 1);
+  // Category Default Assignee always mirrors the People roster: if the
+  // removed member was a category's default assignee, fall back to the
+  // first remaining member instead of leaving a dangling reference.
+  if (removedId) {
+    const fallback = people[0]?.id || '';
+    CATEGORY_COLUMNS.forEach(c => { if (c.assignee === removedId) c.assignee = fallback; });
+  }
+  persistDirectoryOverrides();
+  if (type === 'categories' || type === 'people') renderPeople();
+  renderDirectories();
+  closeReferenceEntry();
+  showToast(result.ok ? 'Removed from Google Sheets ✓' : 'Removed locally only — add your Apps Script URL in CONFIG to sync to Sheets.');
+}
+
+function renderDirectories() {
+  const host = document.getElementById('directoryTabContent'); if (!host) return;
+  const cfg = {
+    folders: ['Folders', 'Store your Drive and workspace links.'],
+    categories: ['Category', 'Manage default assignees for planogram categories.'],
+    contacts: ['Contacts', 'Click a phone number or email address to copy it.'],
+    locations: ['Locations', 'Preview maps and open the location in Google Maps.']
+  }[directoryTab];
+  const items = directoryCollection(directoryTab);
+  const addLabel = directoryTab === 'categories' ? 'Category' : directoryTab.slice(0, -1);
+  host.innerHTML = `<div class="directory-toolbar"><div><h3>${cfg[0]}</h3><p>${cfg[1]}</p></div><button class="directory-add" type="button" onclick="openReferenceEntry('${directoryTab}')">+ Add ${addLabel}</button></div><div class="directory-list" id="directoryList"></div>`;
+  const list = document.getElementById('directoryList');
+  if (!items.length) { list.innerHTML = '<div class="empty-directory">No entries yet. Add the first entry for this section.</div>'; return; }
+
+  if (directoryTab === 'folders') list.innerHTML = items.map((x, i) => `
+    <article class="directory-card" role="button" tabindex="0" aria-label="Edit folder ${escHtml(x.name)}" onclick="openReferenceEntry('folders',${i})" onkeydown="keyActivate(event, () => openReferenceEntry('folders',${i}))">
+      <h3>${escHtml(x.name)}</h3>
+      <div class="tag-list">${(x.tags || []).map(t => `<span class="mini-tag">${escHtml(t)}</span>`).join('')}</div>
+      <button class="card-link-btn" type="button" onclick="event.stopPropagation(); window.open('${escHtml(x.url)}','_blank','noopener')" onkeydown="event.stopPropagation()">Open folder ↗</button>
+    </article>`).join('');
+
+  if (directoryTab === 'categories') list.innerHTML = items.map((x, i) => `
+    <article class="directory-card" role="button" tabindex="0" aria-label="Edit category ${escHtml(x.name)}" onclick="openReferenceEntry('categories',${i})" onkeydown="keyActivate(event, () => openReferenceEntry('categories',${i}))">
+      <h3>${escHtml(x.name)}</h3>
+      <p>${escHtml(x.label || '')}</p>
+      <div class="data-row"><span class="data-label">Default</span><span class="chip assignee-pill ${escHtml(x.assignee).toLowerCase()}" style="${escHtml(assigneePillStyleAttr(x.assignee))}">${escHtml(assigneeLabel(x.assignee))}</span></div>
+    </article>`).join('');
+
+  if (directoryTab === 'contacts') list.innerHTML = items.map((x, i) => `
+    <article class="directory-card" role="button" tabindex="0" aria-label="Edit contact ${escHtml(x.name)}" onclick="openReferenceEntry('contacts',${i})" onkeydown="keyActivate(event, () => openReferenceEntry('contacts',${i}))">
+      <h3>${escHtml(x.name)}</h3>
+      <p>${escHtml(x.position || '')}</p>
+      ${x.phone ? `<div class="data-row"><span class="data-label">Contact</span><span class="data-value click-copy" role="button" tabindex="0" aria-label="Copy phone number" onclick="event.stopPropagation(); copyToClipboard('${escHtml(x.phone)}')" onkeydown="event.stopPropagation(); keyActivate(event, () => copyToClipboard('${escHtml(x.phone)}'))">${escHtml(x.phone)} ⧉</span></div>` : ''}
+      ${x.email ? `<div class="data-row"><span class="data-label">Email</span><span class="data-value click-copy" role="button" tabindex="0" aria-label="Copy email address" onclick="event.stopPropagation(); copyToClipboard('${escHtml(x.email)}')" onkeydown="event.stopPropagation(); keyActivate(event, () => copyToClipboard('${escHtml(x.email)}'))">${escHtml(x.email)} ⧉</span></div>` : ''}
+    </article>`).join('');
+
+  if (directoryTab === 'locations') list.innerHTML = items.map((x, i) => {
+    const preview = locationPreviewUrl(x.mapUrl);
+    return `<article class="directory-card" role="button" tabindex="0" aria-label="Edit location ${escHtml(x.name)}" onclick="openReferenceEntry('locations',${i})" onkeydown="keyActivate(event, () => openReferenceEntry('locations',${i}))">
+      <h3>${escHtml(x.name)}</h3>
+      ${preview ? `<iframe class="map-preview" loading="lazy" src="${escHtml(preview)}" referrerpolicy="no-referrer-when-downgrade" title="Map preview for ${escHtml(x.name)}"></iframe>` : ''}
+      <div class="tag-list">${(x.tags || []).map(t => `<span class="mini-tag">${escHtml(t)}</span>`).join('')}</div>
+      <button class="card-link-btn" type="button" onclick="event.stopPropagation(); window.open('${escHtml(toMapsLink(x.mapUrl))}','_blank','noopener')" onkeydown="event.stopPropagation()">Open map ↗</button>
+    </article>`;
+  }).join('');
+}
+
+/* ---------- People ---------- */
+function isSameRefMonth(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.getFullYear() === STATS_REF_DATE.getFullYear() && d.getMonth() === STATS_REF_DATE.getMonth();
+}
+
+// Real counts from task data — a Standard task counts complete once every
+// subtask (or, having none, itself) is done; a category counts complete
+// once its checklist reaches the flow's final step.
+function personMonthlyStats(code) {
+  const items = personMonthlyItems(code);
+  return {
+    pending: items.filter(i => i.status === 'pending').length,
+    completed: items.filter(i => i.status === 'completed').length
+  };
+}
+
+// Same filters as personMonthlyStats, but returns the underlying task /
+// category rows (with a per-item progress %) so the person details overlay
+// can list them out instead of just showing a count.
+function personMonthlyItems(code) {
+  const items = [];
+  tasks.forEach(t => {
+    if (t.type === 'Standard') {
+      if (!(t.assignees || []).includes(code) || !isSameRefMonth(t.date)) return;
+      const done = t.subtasks.length === 0 || t.subtasks.every(s => s.done);
+      items.push({ taskId: t.id, title: t.title, type: t.type, pct: taskProgressPercent(t), status: done ? 'completed' : 'pending' });
+    } else {
+      (t.categories || []).forEach(cat => {
+        if (cat.assignee !== code || !isSameRefMonth(t.planoDeadline)) return;
+        const total = cat.checked.length, doneCount = cat.checked.filter(Boolean).length;
+        const pct = total ? Math.round(doneCount / total * 100) : 0;
+        const status = getCategoryStatus(cat.checked, t.type, cat.name);
+        items.push({ taskId: t.id, title: `${t.storeName} — ${cat.name}`, type: t.type, pct, status: status.cls === 'complete' ? 'completed' : 'pending' });
+      });
+    }
+  });
+  return items;
+}
+
+// Every person now has a required, user-typed short code (p.id) — this is
+// the single source of truth for pills, avatars, and assignee references.
+// Replaces the old personInitials() fallback that computed a label from the
+// name when no explicit initials were set.
+function personCode(p) { return p ? p.id : ''; }
+function personAvatarStyleAttr(p) {
+  return (p.bg && p.txt) ? `--member-bg:${p.bg};--member-txt:${p.txt}` : '';
+}
+// Category-assignee pills (Default Assignee chips, per-task category chips)
+// resolve the stored code to the live People record on every render, so
+// renaming, recoloring, or removing a team member is reflected everywhere
+// that code is shown — nothing about assignees is cached separately.
+function personByCode(code) { return people.find(p => p.id === code); }
+function assigneePillStyleAttr(code) {
+  const p = personByCode(code);
+  return p ? personAvatarStyleAttr(p) : '';
+}
+function assigneeLabel(code) {
+  if (!code) return 'Unassigned';
+  const p = personByCode(code);
+  return p ? personCode(p) : code;
+}
+
+function renderPeople() {
+  document.getElementById('peopleGrid').innerHTML = people.map(p => {
+    const cats = CATEGORY_COLUMNS.filter(c => c.assignee === p.id).map(c => c.name);
+    const stats = personMonthlyStats(p.id);
+    const initials = personCode(p);
+    return `
+      <div class="person-card" role="button" tabindex="0" aria-label="View ${escHtml(p.name)}'s tasks" onclick="openPersonDetails('${p.id}')" onkeydown="keyActivate(event, () => openPersonDetails('${p.id}'))">
+        <div class="person-card-head">
+          <div class="person-avatar ${escHtml(p.id).toLowerCase()}" style="${escHtml(personAvatarStyleAttr(p))}">${initials}</div>
+          <div><strong>${escHtml(p.name)}</strong><span class="person-position">${escHtml(p.position)}</span></div>
+        </div>
+        <button class="copy-chip" type="button" onclick="event.stopPropagation(); copyToClipboard('${p.email}')">✉ ${p.email}</button>
+        <div class="person-categories">${cats.length ? cats.map(c => `<span class="person-category">${escHtml(c)}</span>`).join('') : '<span class="empty-note">No categories assigned</span>'}</div>
+        <div class="person-stats">
+          <div class="person-stat pending"><span class="stat-num">${stats.pending}</span><span class="stat-lbl">Pending</span></div>
+          <div class="person-stat completed"><span class="stat-num">${stats.completed}</span><span class="stat-lbl">Completed</span></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ---------- Person details overlay: pending (with progress), then completed ---------- */
+function personDeetsRowHTML(item) {
+  return `
+    <div class="person-deets-row" role="button" tabindex="0" aria-label="Open ${escHtml(item.title)}" onclick="openPersonTask('${item.taskId}')" onkeydown="keyActivate(event, () => openPersonTask('${item.taskId}'))">
+      <div class="person-deets-row-top">
+        <span class="chip type-pill ${item.type.toLowerCase()}">${item.type}</span>
+        <span class="person-deets-row-title">${escHtml(item.title)}</span>
+        <span class="chip progress-pill" style="${progressPillStyle(item.pct)}">${item.pct}%</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill ${item.pct === 100 ? 'bar-fill--done' : ''}" style="width:${item.pct}%"></div></div>
+    </div>`;
+}
+
+function openPersonDetails(code) {
+  const person = people.find(p => p.id === code);
+  if (!person) return;
+  const cats = CATEGORY_COLUMNS.filter(c => c.assignee === code).map(c => c.name);
+  const items = personMonthlyItems(code);
+  const pending = items.filter(i => i.status === 'pending');
+  const completed = items.filter(i => i.status === 'completed');
+  const initials = personCode(person);
+
+  const personAvatar = document.getElementById('personDeetsAvatar');
+  personAvatar.textContent = initials;
+  personAvatar.className = `person-avatar ${escHtml(person.id).toLowerCase()}`;
+  personAvatar.style.cssText = personAvatarStyleAttr(person);
+  document.getElementById('personDeetsName').textContent = person.name;
+  document.getElementById('personDeetsPosition').textContent = person.position;
+  const emailBtn = document.getElementById('personDeetsEmail');
+  emailBtn.textContent = `✉ ${person.email}`;
+  emailBtn.onclick = () => copyToClipboard(person.email);
+  document.getElementById('personDeetsEditBtn').onclick = () => editPersonFromDetails(code);
+
+  document.getElementById('personDeetsCategories').innerHTML = cats.length
+    ? cats.map(c => `<span class="person-category">${escHtml(c)}</span>`).join('')
+    : '<span class="empty-note">No categories assigned</span>';
+
+  document.getElementById('personDeetsPendingCount').textContent = pending.length;
+  document.getElementById('personDeetsCompletedCount').textContent = completed.length;
+  document.getElementById('personDeetsPendingList').innerHTML = pending.length ? pending.map(personDeetsRowHTML).join('') : '<p class="empty-note">No pending tasks this month.</p>';
+  document.getElementById('personDeetsCompletedList').innerHTML = completed.length ? completed.map(personDeetsRowHTML).join('') : '<p class="empty-note">No completed tasks this month.</p>';
+
+  document.getElementById('personDeetsOverlay').classList.add('open');
+  openOverlayA11y(document.getElementById('personDeetsCard'));
+}
+
+function openPersonTask(taskId) {
+  closePersonDetails();
+  openTaskDetails(taskId);
+}
+
+function closePersonDetails() {
+  document.getElementById('personDeetsOverlay')?.classList.remove('open');
+  closeOverlayA11y();
+}
+
+function editPersonFromDetails(code) {
+  const idx = people.findIndex(p => p.id === code);
+  if (idx === -1) return;
+  closePersonDetails();
+  openReferenceEntry('people', idx);
+}
+
+function handlePersonDeetsOverlayClick(e) {
+  if (e.target === document.getElementById('personDeetsOverlay')) closePersonDetails();
+}
+
+function toggleTheme() {
+  const root = document.documentElement;
+  const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  root.dataset.theme = next;
+  localStorage.setItem('tee-theme', next);
+  syncThemeControls(next);
+}
+function syncThemeControls(theme) {
+  const isDark = theme === 'dark';
+  document.getElementById('themeModeLabel').textContent = isDark ? 'Light mode' : 'Dark mode';
+  document.getElementById('themeModeHint').textContent = isDark ? 'Switch to light workspace' : 'Switch to dark workspace';
+  document.getElementById('themeIcon').textContent = isDark ? '◑' : '◐';
+}
+function initTheme() {
+  const saved = localStorage.getItem('tee-theme');
+  const theme = saved === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = theme;
+  syncThemeControls(theme);
+}
+
+function toggleSidebar() {
+  const collapsed = document.body.classList.toggle('sidebar-collapsed');
+  document.getElementById('commandSidebar').classList.toggle('collapsed', collapsed);
+  localStorage.setItem('tee-sidebar-collapsed', collapsed ? '1' : '0');
+  syncSidebarCollapseBtn(collapsed);
+}
+function syncSidebarCollapseBtn(collapsed) {
+  const btn = document.getElementById('sidebarCollapseBtn');
+  if (!btn) return;
+  btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+}
+function initSidebar() {
+  const collapsed = localStorage.getItem('tee-sidebar-collapsed') === '1';
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
+  document.getElementById('commandSidebar').classList.toggle('collapsed', collapsed);
+  syncSidebarCollapseBtn(collapsed);
+}
+// The whole sidebar is the collapse toggle now (no dedicated button) — but a
+// click has to fall through to nav items, the theme switch, etc. normally,
+// so only bare background/padding clicks (nothing interactive under the
+// pointer) trigger collapse. Desktop only; mobile uses its own compact bar.
+function handleSidebarClick(e) {
+  if (window.innerWidth <= 900) return;
+  if (e.target.closest('button, a, select, input')) return;
+  toggleSidebar();
+}
+
+function showToast(message) {
+  const region = document.getElementById('toastRegion');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  region.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(8px)';
+    setTimeout(() => toast.remove(), 220);
+  }, 2800);
+}
+
+/* =================================================================
+   8. TASK DETAILS OVERLAY
+   ================================================================= */
+function openTaskDetails(id) {
+  currentTaskId = id;
+  renderOverlayFor(getTaskById(id));
+  document.getElementById('taskDeetsOverlay').classList.add('open');
+  openOverlayA11y(document.getElementById('deetsCard'));
+}
+function closeTaskDetails() {
+  document.getElementById('taskDeetsOverlay').classList.remove('open');
+  closeOverlayA11y();
+  currentTaskId = null;
+  renderListView();
+  renderDashboard();
+}
+function handleDeetsOverlayClick(e) { if (e.target === document.getElementById('taskDeetsOverlay')) closeTaskDetails(); }
+
+function renderOverlayFor(task) {
+  document.getElementById('deetsTitle').textContent = task.title;
+  const badge = document.getElementById('deetsTypeBadge');
+  badge.textContent = task.type;
+  badge.className = `chip type-badge type-pill ${task.type.toLowerCase()}`;
+
+  const isStandard = task.type === 'Standard';
+  document.getElementById('deetsStandardBlock').classList.toggle('hidden', !isStandard);
+  document.getElementById('deetsStoreBlock').classList.toggle('hidden', isStandard);
+  document.getElementById('deetsTags').innerHTML = (task.tags || []).map(t => `<span class="chip tag-pill">${t}</span>`).join('');
+  document.getElementById('deetsFileChip').textContent = `📄 ${task.fileName || 'No file attached'}`;
+
+  if (isStandard) {
+    const c = document.getElementById('deetsStdAssignees');
+    c.innerHTML = (task.assignees && task.assignees.length)
+      ? task.assignees.map(a => `<span class="chip assignee-pill ${a.toLowerCase()}">${a}</span>`).join('')
+      : `<span class="empty-note">No assignees selected</span>`;
+    document.getElementById('deetsDescription').textContent = task.description || '';
+    document.getElementById('deetsStdNotes').textContent = task.notes || '';
+    document.getElementById('deetsTargetDate').textContent = task.date || '';
+    document.getElementById('deetsDriveLinks').innerHTML = task.links ? `<a href="${task.links}" target="_blank" class="link-chip">Attached Link ↗</a>` : '';
+    renderSubtasks(task);
+  } else {
+    document.getElementById('deetsStoreCode').textContent = task.code || '';
+    document.getElementById('deetsProdListDeadline').textContent = task.prodListDeadline || '';
+    document.getElementById('deetsPlanoDeadline').textContent = task.planoDeadline || '';
+    document.getElementById('deetsStoreNotes').textContent = task.notes || '';
+    document.getElementById('deetsDriveLinks').innerHTML = deetsStoreLinksHtml(task);
+    renderCategories(task);
+  }
+}
+
+function renderSubtasks(task) {
+  if (task.subtasks.length === 0) {
+    document.getElementById('deetsCatList').innerHTML = `<div class="empty-state" style="min-height:auto; padding:16px;"><div class="empty-state-copy">No subtasks configured for this standard task.</div></div>`;
+    return;
+  }
+  const doneCount = task.subtasks.filter(s => s.done).length;
+  const pct = Math.round(doneCount / task.subtasks.length * 100);
+  document.getElementById('deetsCatList').innerHTML = `
+    <div class="subtask-progress-head">
+      <span>Subtask Progress</span>
+      <div class="progress-wrap" style="width:180px;">
+        <div class="bar-bg"><div class="bar-fill ${pct === 100 ? 'bar-fill--done' : ''}" style="width:${pct}%"></div></div>
+        <span class="pct-txt ${pct === 100 ? 'pct-txt--done' : ''}">${pct}%</span>
+      </div>
+    </div>
+    <div class="standard-subtask-list">
+      ${task.subtasks.map((st, idx) => `
+        <div class="standard-subtask-item ${st.done ? 'done' : 'pending'}" role="button" tabindex="0" aria-pressed="${st.done ? 'true' : 'false'}" aria-label="${escHtml(st.text)}" onclick="toggleSubtask('${task.id}', ${idx})" onkeydown="keyActivate(event, () => toggleSubtask('${task.id}', ${idx}))">
+          <div class="step-label"><span class="step-icon">${st.done ? '✓' : ''}</span><span class="step-text">${st.text}</span></div>
+          <span class="timestamp-tag">${st.timestamp || ''}</span>
+        </div>`).join('')}
+    </div>`;
+  renderTaskListBadgeSync();
+}
+async function toggleSubtask(taskId, idx) {
+  const task = getTaskById(taskId);
+  const st = task.subtasks[idx];
+  const willBeDone = !st.done;
+  // Optimistic update — a checkbox toggle should feel instant, not wait on
+  // a round trip. Reverted below only if the backend genuinely rejects it.
+  st.done = willBeDone;
+  st.timestamp = willBeDone ? formatTimestamp() : null;
+  renderSubtasks(task);
+  const result = await postToBackend('toggleSubtask', { taskId, index: idx });
+  if (!result.ok && result.reason === 'error') {
+    st.done = !willBeDone;
+    st.timestamp = st.done ? formatTimestamp() : null;
+    renderSubtasks(task);
+    showToast(`Could not save to Google Sheets: ${result.error.message}`);
+  }
+}
+
+function renderCategories(task) {
+  document.getElementById('deetsCatList').innerHTML = task.categories.map((cat, ci) => {
+    const steps = getCategorySteps(task.type, cat.name);
+    const doneCount = cat.checked.filter(Boolean).length;
+    const pct = steps.length ? Math.round(doneCount / steps.length * 100) : 0;
+    const status = getCategoryStatus(cat.checked, task.type, cat.name);
+    return `
+      <div class="cat-item">
+        <div class="cat-top" role="button" tabindex="0" aria-expanded="${cat.open ? 'true' : 'false'}" aria-label="${escHtml(cat.name)} category steps" onclick="toggleCategoryOpen('${task.id}', ${ci})" onkeydown="keyActivate(event, () => toggleCategoryOpen('${task.id}', ${ci}))">
+          <span class="cat-name">${cat.name}</span>
+          <span class="chip assignee-pill ${cat.assignee.toLowerCase()}" style="${escHtml(assigneePillStyleAttr(cat.assignee))}">${escHtml(assigneeLabel(cat.assignee))}</span>
+          <span class="chip pill ${status.cls}">${status.name}</span>
+          <div class="progress-wrap"><div class="bar-bg"><div class="bar-fill ${pct === 100 ? 'bar-fill--done' : ''}" style="width:${pct}%"></div></div><span class="pct-txt ${pct === 100 ? 'pct-txt--done' : ''}">${pct}%</span></div>
+        </div>
+        <div class="steps-drawer ${cat.open ? '' : 'closed'}">
+          ${steps.map((s, si) => `
+            <div class="step-row ${cat.checked[si] ? 'done' : 'pending'}" role="button" tabindex="0" aria-pressed="${cat.checked[si] ? 'true' : 'false'}" aria-label="${escHtml(s)}" onclick="toggleCategoryStep('${task.id}', ${ci}, ${si})" onkeydown="keyActivate(event, () => toggleCategoryStep('${task.id}', ${ci}, ${si}))">
+              <div class="step-label"><span class="step-icon">${cat.checked[si] ? '✓' : ''}</span><span class="step-text">${s}</span></div>
+              <span class="timestamp-tag">${cat.timestamps[si] || ''}</span>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
+  renderTaskListBadgeSync();
+}
+function toggleCategoryOpen(taskId, ci) {
+  const task = getTaskById(taskId);
+  task.categories[ci].open = !task.categories[ci].open;
+  renderCategories(task);
+}
+async function toggleCategoryStep(taskId, ci, si) {
+  const task = getTaskById(taskId);
+  const cat = task.categories[ci];
+  const steps = getCategorySteps(task.type, cat.name);
+  const willCheck = !cat.checked[si];
+  const now = formatTimestamp();
+  // Optimistic cascade update, same rule the backend applies: checking a
+  // step checks everything before it; unchecking a step unchecks everything
+  // from it onward. Not rolled back on failure (the cascade math would need
+  // duplicating here) — a failed save just shows a toast so it's obvious
+  // the change didn't reach the Sheet.
+  if (willCheck) {
+    for (let i = 0; i <= si; i++) { cat.checked[i] = true; if (!cat.timestamps[i]) cat.timestamps[i] = now; }
+  } else {
+    for (let i = si; i < steps.length; i++) { cat.checked[i] = false; cat.timestamps[i] = null; }
+  }
+  renderCategories(task);
+  const result = await postToBackend('toggleCategoryStep', { taskId, categoryName: cat.name, stepIndex: si });
+  if (!result.ok && result.reason === 'error') showToast(`Could not save to Google Sheets: ${result.error.message}`);
+}
+// Keep the list view and dashboard numbers live while the overlay is open, without closing it.
+function renderTaskListBadgeSync() { renderListView(); renderDashboard(); renderCalendarTaskList(); }
+
+/* =================================================================
+   9. TASK ENTRY MODAL
+   ================================================================= */
+function openCreateModal() {
+  document.getElementById('taskEntryModal').classList.add('open');
+  document.getElementById('typeSelect').value = 'Standard';
+  selectedStandardAssignees = people.slice(0, 2).map(p => p.id);
+  // Categories with a configured Directories default start pre-selected
+  // (and therefore included); categories with no default start on "No
+  // Changes" since there's nothing sensible to pre-fill.
+  selectedCategoryAssignees = {};
+  CATEGORY_COLUMNS.forEach(c => { if (c.assignee) selectedCategoryAssignees[c.name] = c.assignee; });
+  ['stdTitle','stdDate','stdTags','stdDesc','stdNotes','stdLinks','storeSearch','store','storeCode','prodListDeadline','planoDeadline','storeNotes']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('stdFileName').textContent = 'Upload Attachment (PDF, DWG, XLSX, PNG)';
+  document.getElementById('moduleFileName').textContent = 'Upload Module Allocation (PDF, DWG, XLSX)';
+  document.getElementById('stdSubtasksContainer').innerHTML = '';
+  setupEntryAssigneePills();
+  initEntryCategories();
+  setType('Standard');
+  openOverlayA11y(document.getElementById('entryModalCard'));
+}
+function closeCreateModal() {
+  document.getElementById('taskEntryModal').classList.remove('open');
+  closeOverlayA11y();
+}
+function handleModalScrimClick(e) { if (e.target === document.getElementById('taskEntryModal')) closeCreateModal(); }
+
+function setType(val) {
+  const isStandard = val === 'Standard';
+  document.getElementById('standardFields').classList.toggle('hidden', !isStandard);
+  document.getElementById('specialFields').classList.toggle('hidden', isStandard);
+  if (isStandard && document.getElementById('stdSubtasksContainer').children.length === 0) {
+    addStandardSubtaskInput('Draft project proposal');
+    addStandardSubtaskInput('Review material cost estimates');
+  }
+}
+function toggleAssigneePill(el, code) {
+  el.classList.toggle('selected');
+  const isSelected = el.classList.contains('selected');
+  el.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+  if (isSelected) { if (!selectedStandardAssignees.includes(code)) selectedStandardAssignees.push(code); }
+  else { selectedStandardAssignees = selectedStandardAssignees.filter(a => a !== code); }
+}
+// Standard-task assignee pills are rebuilt from the live People roster
+// every time the modal opens, so adding, removing, or recoloring a team
+// member is reflected here immediately — this list is never hand-maintained.
+function setupEntryAssigneePills() {
+  const host = document.getElementById('stdAssigneePillGroup');
+  if (!people.length) {
+    host.innerHTML = '<p class="empty-note">No team members yet — add one from the People tab first.</p>';
+    return;
+  }
+  host.innerHTML = people.map(p => {
+    const selected = selectedStandardAssignees.includes(p.id);
+    return `<span class="chip assignee-pill selectable-pill ${escHtml(p.id).toLowerCase()}${selected ? ' selected' : ''}" style="${escHtml(personAvatarStyleAttr(p))}" role="button" tabindex="0" aria-pressed="${selected ? 'true' : 'false'}" onclick="toggleAssigneePill(this, '${p.id}')" onkeydown="keyActivate(event, () => toggleAssigneePill(this, '${p.id}'))">${escHtml(p.id)}</span>`;
+  }).join('');
+}
+function initEntryCategories() {
+  document.getElementById('entryCategories').innerHTML = CATEGORY_COLUMNS.map(c => {
+    const selectedId = selectedCategoryAssignees[c.name]; // undefined = No Changes (use the Directories default)
+    const selectedPerson = selectedId ? personByCode(selectedId) : null;
+    const pillStyle = selectedPerson ? personAvatarStyleAttr(selectedPerson) : '';
+    return `
+    <div class="entry-cat" data-cat="${escHtml(c.name)}">
+      <div class="entry-cat-top">
+        <div class="entry-cat-name" title="${escHtml(c.label || '')}">${c.name}</div>
+        <select class="assignee-select-pill${selectedId ? ' selected' : ''}" data-cat="${escHtml(c.name)}" style="${escHtml(pillStyle)}" onchange="setEntryCategoryAssignee('${escHtml(c.name)}', this.value)">
+          <option value="__no_change__" ${!selectedId ? 'selected' : ''}>No Changes</option>
+          ${people.map(p => `<option value="${escHtml(p.id)}" ${selectedId === p.id ? 'selected' : ''}>${escHtml(personCode(p))}</option>`).join('')}
+        </select>
+      </div>
+    </div>`;
+  }).join('');
+}
+// Every category is always tracked on the task — this only decides who's
+// assigned. "No Changes" means inherit whatever the Directories default is
+// right now (which may itself be blank), rather than freezing in a value.
+// Defaults to the category's current Directories default when the form
+// opens (see openCreateModal), so most rows need no interaction at all.
+function setEntryCategoryAssignee(categoryName, value) {
+  if (value === '__no_change__') delete selectedCategoryAssignees[categoryName];
+  else selectedCategoryAssignees[categoryName] = value;
+  initEntryCategories(); // re-render so the pill's own color updates to match the pick
+}
+function addStandardSubtaskInput(value = '') {
+  const div = document.createElement('div');
+  div.className = 'subtask-input-row';
+  div.innerHTML = `<input class="input std-subtask-item" placeholder="Enter subtask step..." value="${value}"><button type="button" class="btn-icon-danger" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('stdSubtasksContainer').appendChild(div);
+}
+function searchStores() {
+  const q = document.getElementById('storeSearch').value.toLowerCase().trim();
+  const box = document.getElementById('storeResults');
+  if (!q) { box.style.display = 'none'; return; }
+  const hits = stores.filter(s => s.code.toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q));
+  box.innerHTML = hits.map(s => `<div class="store-result" role="option" tabindex="0" aria-label="${escHtml(s.name || s.code)}, ${escHtml(s.code)}" onclick="selectStore('${s.code}', '${escHtml(s.name || s.code)}')" onkeydown="keyActivate(event, () => selectStore('${s.code}', '${escHtml(s.name || s.code)}'))"><div class="store-name">${s.name || s.code}</div><div class="store-code">${s.code}</div></div>`).join('');
+  box.style.display = 'block';
+}
+function selectStore(code, name) {
+  document.getElementById('store').value = name;
+  document.getElementById('storeCode').value = code;
+  document.getElementById('storeSearch').value = name;
+  document.getElementById('storeResults').style.display = 'none';
+}
+function handleModuleUpload(input) { if (input.files?.[0]) document.getElementById('moduleFileName').textContent = input.files[0].name; }
+function handleStdFileUpload(input) { if (input.files?.[0]) document.getElementById('stdFileName').textContent = input.files[0].name; }
+
+async function saveNewTask() {
+  const type = document.getElementById('typeSelect').value;
+  let payload;
+
+  if (type === 'Standard') {
+    const subtaskTexts = [...document.querySelectorAll('#stdSubtasksContainer .std-subtask-item')].map(i => i.value.trim()).filter(Boolean);
+    payload = {
+      type: 'Standard',
+      title: document.getElementById('stdTitle').value.trim() || 'Untitled Task',
+      assignees: [...selectedStandardAssignees],
+      date: document.getElementById('stdDate').value || 'No date set',
+      tags: document.getElementById('stdTags').value.split(',').map(t => t.trim()).filter(Boolean),
+      description: document.getElementById('stdDesc').value.trim() || 'No description provided.',
+      notes: document.getElementById('stdNotes').value.trim() || 'No notes provided.',
+      links: document.getElementById('stdLinks').value.trim() || 'https://drive.google.com/',
+      fileName: document.getElementById('stdFileName').textContent,
+      subtasks: subtaskTexts
+    };
+  } else {
+    const storeName = document.getElementById('store').value.trim() || 'Untitled Store';
+    const code = document.getElementById('storeCode').value.trim();
+    payload = {
+      type, storeName, code,
+      tags: [type, code].filter(Boolean),
+      prodListDeadline: document.getElementById('prodListDeadline').value || 'No date set',
+      planoDeadline: document.getElementById('planoDeadline').value || 'No date set',
+      notes: document.getElementById('storeNotes').value.trim() || 'Store tasks and module allocation schedule.',
+      fileName: document.getElementById('moduleFileName').textContent,
+      categoryAssignees: { ...selectedCategoryAssignees }
+    };
+  }
+
+  // Optimistic create: the task appears in every view and the modal closes
+  // immediately, instead of waiting on the Apps Script round trip (which
+  // routinely takes a couple of seconds — Sheets isn't a fast database).
+  // It's tagged "Syncing…" until the backend confirms it, at which point
+  // its temporary id is swapped for the real Sheet-issued one. If the save
+  // fails, it's tagged "Not saved" instead of silently vanishing, since
+  // it otherwise only exists on this device and would be lost on reload.
+  const localId = `local-${taskIdCounter++}`;
+  const newTask = type === 'Standard'
+    ? {
+        id: localId, type: 'Standard', title: payload.title, assignees: payload.assignees, date: payload.date,
+        tags: payload.tags, description: payload.description, notes: payload.notes, links: payload.links,
+        fileName: payload.fileName, subtasks: payload.subtasks.map(text => ({ text, done: false, timestamp: null })),
+        _syncing: !!APPS_SCRIPT_URL
+      }
+    : {
+        id: localId, type, title: `${payload.storeName} — Refresh Task`, storeName: payload.storeName, code: payload.code,
+        tags: payload.tags, prodListDeadline: payload.prodListDeadline, planoDeadline: payload.planoDeadline,
+        notes: payload.notes, fileName: payload.fileName,
+        categories: CATEGORY_COLUMNS
+          .map(c => seedCategory(c.name, payload.categoryAssignees[c.name] ?? c.assignee, 0, getCategorySteps(type, c.name).length)),
+        _syncing: !!APPS_SCRIPT_URL
+      };
+  tasks.push(newTask);
+
+  showToast(APPS_SCRIPT_URL ? 'Task created — syncing to Google Sheets…' : 'Task created locally only — add your Apps Script URL in CONFIG to sync to Sheets.');
+  closeCreateModal();
+  renderAllTaskViews();
+
+  if (!APPS_SCRIPT_URL) return;
+
+  const result = await postToBackend('createTask', { data: payload });
+  if (result.ok && result.data && result.data.id) {
+    newTask.id = result.data.id;
+    delete newTask._syncing;
+  } else {
+    delete newTask._syncing;
+    newTask._syncFailed = true;
+    showToast(`Could not save to Google Sheets — this task only exists on this device.${result.error ? ' ' + result.error.message : ''}`);
+  }
+  renderAllTaskViews();
+}
+
+/* =================================================================
+   10. INIT
+   ================================================================= */
+window.addEventListener('DOMContentLoaded', async () => {
+  initTheme();
+  initSidebar();
+  await loadLiveData();
+  renderListView();
+  renderDashboard();
+  renderCalendar();
+  renderCalendarTaskList();
+  renderDirectories();
+  renderPeople();
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('taskEntryModal').classList.contains('open')) closeCreateModal();
+    if (document.getElementById('taskDeetsOverlay').classList.contains('open')) closeTaskDetails();
+    if (document.getElementById('personDeetsOverlay').classList.contains('open')) closePersonDetails();
+    if (document.getElementById('referenceEntryModal').classList.contains('open')) closeReferenceEntry();
+  });
+});
+</script>
+</body>
+</html>
