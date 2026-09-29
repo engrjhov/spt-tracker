@@ -30,7 +30,7 @@
   button, input, select, textarea { font: inherit; }
   button { cursor: pointer; }
   button, input, select, textarea {
-    transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease, transform .12s ease, color .18s ease;
+    transition: border-color var(--motion-standard) ease, box-shadow var(--motion-standard) ease, background-color var(--motion-standard) ease, transform var(--motion-fast) ease, color var(--motion-standard) ease;
   }
   button:active { transform: scale(.98); }
   button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible,
@@ -97,11 +97,10 @@
     --member-s: 62%; --member-bg-l: 92%; --member-txt-l: 32%;
 
     /* Motion */
-    --ease: cubic-bezier(.22,.61,.36,1);
-    --ease-spring: cubic-bezier(.2,.8,.2,1);
-    --dur-fast: .18s;
-    --dur: .35s;
-    --dur-slow: .6s;
+    --motion-fast: 120ms; --motion-standard: 180ms; --motion-medium: 240ms; --motion-slow: 320ms;
+    --ease-standard: cubic-bezier(.22,1,.36,1); --ease-enter: cubic-bezier(.16,1,.3,1); --ease-exit: cubic-bezier(.4,0,1,1);
+    --ease: var(--ease-standard); --ease-spring: var(--ease-enter);   /* no overshoot: soft physicality, not cartoon physics */
+    --dur-fast: var(--motion-standard); --dur: var(--motion-medium); --dur-slow: 420ms;
   }
   [data-theme="dark"] {
     /* Deep navy/charcoal base with large, extremely soft ambient light
@@ -159,7 +158,7 @@
     display: inline-flex; align-items: center; justify-content: center; width: fit-content;
     padding: 3px 10px; border: 1px solid color-mix(in srgb, var(--member-txt) 40%, transparent);
     background: var(--member-bg); color: var(--member-txt);
-    transition: all var(--dur-fast) ease;
+    transition: background-color var(--motion-standard) ease, border-color var(--motion-standard) ease, color var(--motion-standard) ease, box-shadow var(--motion-standard) ease, transform var(--motion-fast) ease-out, opacity var(--motion-standard) ease;
   }
   /* Colours come from an inline style set by personAvatarStyleAttr() — generated per person, so
      a new team member needs no CSS. */
@@ -560,7 +559,7 @@
 
   /* Directory pill tabs (ported from the cards-first directory build) */
   .pill-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 18px; padding: 4px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 12px; width: max-content; max-width: 100%; }
-  .pill-tab { border: 0; background: transparent; color: var(--muted); padding: 8px 13px; border-radius: 9px; font-size: 11px; font-weight: 750; cursor: pointer; transition: all .22s var(--ease); }
+  .pill-tab { border: 0; background: transparent; color: var(--muted); padding: 8px 13px; border-radius: 9px; font-size: 11px; font-weight: 750; cursor: pointer; transition: background-color var(--motion-standard) ease, border-color var(--motion-standard) ease, color var(--motion-standard) ease, box-shadow var(--motion-standard) ease, transform var(--motion-fast) ease-out, opacity var(--motion-standard) ease; }
   .pill-tab.active { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .pill-tab:hover { color: var(--ink); }
 
@@ -587,10 +586,10 @@
     cursor: pointer;
     transform: translateY(0) scale(1);
     transition:
-      transform .22s var(--ease),
-      box-shadow .22s var(--ease),
-      border-color .22s var(--ease),
-      background-color .22s ease;
+      transform var(--motion-medium) var(--ease),
+      box-shadow var(--motion-medium) var(--ease),
+      border-color var(--motion-medium) var(--ease),
+      background-color var(--motion-medium) ease;
   }
   .directory-card:hover {
     border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
@@ -649,7 +648,7 @@
   .copy-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
   /* People */
-  .person-card { padding: 15px; background: var(--panel-soft); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease); }
+  .person-card { padding: 15px; background: var(--panel-soft); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: transform var(--motion-medium) var(--ease), box-shadow var(--motion-medium) var(--ease), border-color var(--motion-medium) var(--ease); }
   .person-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
   .person-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .person-card-head { display: flex; align-items: center; gap: 10px; }
@@ -672,7 +671,7 @@
     font-size: 12px;
     font-weight: 900;
     flex: 0 0 auto;
-    transition: transform .22s var(--ease), box-shadow .22s var(--ease), background-color .22s ease, color .22s ease;
+    transition: transform var(--motion-medium) var(--ease), box-shadow var(--motion-medium) var(--ease), background-color var(--motion-medium) ease, color var(--motion-medium) ease;
   }
   .person-card:hover .person-avatar { transform: scale(1.035); box-shadow: 0 5px 14px color-mix(in srgb, var(--member-txt) 12%, transparent); }
   .person-card-head strong { font-size: 13px; display: block; }
@@ -699,7 +698,7 @@
   .person-deets-section-title { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
   .person-deets-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--panel-soft); border: 1px solid var(--line); color: var(--ink); font-size: 10px; }
   .person-deets-list { display: flex; flex-direction: column; gap: 8px; }
-  .person-deets-row { padding: 10px 12px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: border-color .2s ease, transform .2s ease; }
+  .person-deets-row { padding: 10px 12px; background: var(--panel-soft); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: border-color var(--motion-standard) ease, transform var(--motion-standard) ease; }
   .person-deets-row:hover { border-color: var(--accent); transform: translateY(-1px); }
   .person-deets-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .person-deets-row-top { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
@@ -796,7 +795,7 @@
     max-width: min(380px, calc(100vw - 32px)); padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px;
     background: var(--panel); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); color: var(--ink); box-shadow: var(--shadow-lg); font-size: 12px; font-weight: 700;
     opacity: 0; transform: translateY(8px); animation: toast-in .25s var(--ease) forwards;
-    transition: opacity .22s ease, transform .22s ease;
+    transition: opacity var(--motion-medium) ease, transform var(--motion-medium) ease;
     display: flex; align-items: center; gap: 12px; pointer-events: auto;
   }
   @keyframes toast-in { to { opacity: 1; transform: translateY(0); } }
@@ -819,13 +818,7 @@
      ============================================================= */
   @media (min-width: 901px) {
     .command-sidebar.collapsed { width: var(--sidebar-w-collapsed); padding: 18px 8px 14px; }
-    .command-sidebar.collapsed .sidebar-brand-copy,
-    .command-sidebar.collapsed .sidebar-label,
-    .command-sidebar.collapsed .sidebar-nav-item span:last-child,
-    .command-sidebar.collapsed .sidebar-version { display: none; }
-    .command-sidebar.collapsed .sidebar-brand { justify-content: center; padding: 4px 0 20px; }
-    .command-sidebar.collapsed .sidebar-collapse-icon { transform: rotate(180deg); }
-    .command-sidebar.collapsed .sidebar-nav-item { justify-content: center; padding: 10px; }
+
     body.sidebar-collapsed { padding-left: var(--content-offset-collapsed); }
   }
 
@@ -983,7 +976,7 @@
   .cat-note-wide { grid-column: 1 / -1; }
   .cal-event-chip.overdue { box-shadow: inset 0 0 0 1.5px var(--red); }
   .cal-event-chip.done { opacity: .55; text-decoration: line-through; }
-  .category-card { cursor: pointer; transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease); }
+  .category-card { cursor: pointer; transition: transform var(--motion-medium) var(--ease), box-shadow var(--motion-medium) var(--ease), border-color var(--motion-medium) var(--ease); }
   .category-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
   .category-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .cat-deets-summary { display: grid; gap: 10px; margin: 12px 0 14px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
@@ -1000,7 +993,7 @@
   .cat-detail-empty { grid-column: 1 / -1; }
   /* One compact line per store: type, name, current step, and just the date — the group heading above already
      says Overdue/Late/On time/Pending, so repeating that word and the rule name on every row was pure duplication. */
-  .cat-task-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); cursor: pointer; transition: border-color .2s var(--ease); }
+  .cat-task-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); cursor: pointer; transition: border-color var(--motion-standard) var(--ease); }
   .cat-task-row:hover { border-color: var(--accent); }
   .cat-task-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .cat-task-name { font-size: 12px; font-weight: 800; flex: 1 1 110px; min-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* the store is what you're scanning for — it keeps a floor and the badges wrap below it on a narrow row, rather than the name being squeezed out */
@@ -1025,7 +1018,7 @@
     border: 1px solid var(--line); border-radius: 50%; background: var(--panel);
     box-shadow: var(--shadow); color: var(--ink);
     opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(.35);
-    transition: transform .16s var(--ease-spring), opacity .14s ease, background .14s ease, border-color .14s ease, box-shadow .14s ease;
+    transition: transform var(--motion-standard) var(--ease-spring), opacity var(--motion-fast) ease, background var(--motion-fast) ease, border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
   }
   /* Resting size once open is driven by --mag (set continuously in JS — see updateDialMagnify): 1 while nothing
      is armed, then a Gaussian falloff from whichever option the pointer/keyboard is nearest, peaking at that one. */
@@ -1038,16 +1031,16 @@
     transform: translate(-50%, -50%) rotate(var(--dial-label-rot, 0deg));
     background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px;
     font-size: 11px; font-weight: 800; color: var(--ink); white-space: nowrap; box-shadow: var(--shadow);
-    opacity: 0; transition: opacity .12s ease;
+    opacity: 0; transition: opacity var(--motion-fast) ease;
   }
   .dial-armed-label.visible { opacity: 1; }
   .dial-option .ico { width: 18px; height: 18px; }
   .dial-option.armed { z-index: 5; background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 8px 18px rgba(74, 114, 176, .38); }
   /* Confirms the pick: the chosen bubble's icon zooms in while the rest of the menu fades away underneath it,
      then DIAL_SELECT_DELAY_MS later the action actually runs — see runDialSelection(). */
-  .dial-menu.selecting .dial-option:not(.selecting) { transition: opacity .1s ease, transform .1s ease; opacity: 0; transform: translate(-50%, -50%) scale(.5); }
-  .dial-option.selecting { z-index: 6; transition: transform .18s var(--ease-spring), background .1s ease; transform: translate(-50%, -50%) scale(1.85); background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 10px 26px rgba(74, 114, 176, .4); }
-  .dial-option.selecting .ico { transform: scale(1.2); transition: transform .18s var(--ease-spring); }
+  .dial-menu.selecting .dial-option:not(.selecting) { transition: opacity var(--motion-fast) ease, transform var(--motion-fast) ease; opacity: 0; transform: translate(-50%, -50%) scale(.5); }
+  .dial-option.selecting { z-index: 6; transition: transform var(--motion-standard) var(--ease-spring), background var(--motion-fast) ease; transform: translate(-50%, -50%) scale(1.85); background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 10px 26px rgba(74, 114, 176, .4); }
+  .dial-option.selecting .ico { transform: scale(1.2); transition: transform var(--motion-standard) var(--ease-spring); }
   @media (min-width: 901px) { .dial-scrim, .dial-menu { display: none; } }   /* dial gesture is mobile-only; desktop FAB stays a plain button */
   @media (prefers-reduced-motion: reduce) {
     .dial-option, .create-task-fab.dial-armed { transition: opacity .01ms; }
@@ -1068,6 +1061,8 @@
      toasts, popovers) · solid (CTAs, selected, status). Reusable: .glass / .glass--secondary / .glass--float
      ============================================================= */
   :root {
+    --rail-pad-open: 12px;
+    --rail-pad: 9px;   /* collapsed rail's side padding; --sidebar-w-collapsed is measured from the widest row (fitSidebarWidths) */
     --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, system-ui, sans-serif;
     --r-sm: 12px; --r-md: 18px; --r-lg: 24px; --r-xl: 32px;
     --radius-card: var(--r-lg); --radius-control: 12px;
@@ -1183,7 +1178,7 @@
     border: 1px solid var(--glass-border); box-shadow: var(--edge), var(--sh-3);
   }
   .toast { position: relative; border-radius: 18px; }
-  .store-results { border-radius: 16px; animation: lg-drop .18s var(--ease) both; }
+  .store-results { border-radius: 16px; animation: lg-drop var(--motion-standard) var(--ease-enter) both; }
   .store-result { background: transparent; }
   .dial-option {
     background: var(--glass-3); backdrop-filter: blur(22px) saturate(var(--sat)); -webkit-backdrop-filter: blur(22px) saturate(var(--sat));
@@ -1198,8 +1193,8 @@
     content: ""; position: absolute; inset: 0; pointer-events: none;
     backdrop-filter: blur(16px) saturate(130%); -webkit-backdrop-filter: blur(16px) saturate(130%);
   }
-  .overlay-backdrop.open { animation: lg-fade .2s var(--ease); }
-  .overlay-backdrop.open > :is(.deets-card, .modal) { animation: lg-pop .3s var(--ease-spring); }
+  .overlay-backdrop.open { animation: lg-fade var(--motion-medium) ease-out; }
+  .overlay-backdrop.open > :is(.deets-card, .modal) { animation: lg-pop 280ms var(--ease-standard); }
   .deets-card, .modal, .ref-modal-card {
     position: relative; z-index: 1; background: var(--glass-modal);
     backdrop-filter: blur(var(--blur-3)) saturate(var(--sat)); -webkit-backdrop-filter: blur(var(--blur-3)) saturate(var(--sat));
@@ -1208,8 +1203,8 @@
   .modal-foot { background: transparent; }
   .left-aside { background: var(--panel-soft); }
   @keyframes lg-fade { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes lg-pop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
-  @keyframes lg-drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @keyframes lg-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes lg-drop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
 
   /* ---- Solid / high-contrast: CTAs, selected, status stay opaque ---- */
   .btn-primary, .save-btn, .ref-save, .filter-chip.active {
@@ -1225,7 +1220,7 @@
   .btn-secondary-alt, .btn-secondary, .cancel-btn, .ref-cancel, .directory-add, .card-link-btn, .copy-chip, .filter-chip:not(.active),
   .theme-toggle-btn, .force-sync-btn, .cal-nav-btns button {
     background: var(--panel); border: 1px solid var(--line); color: var(--ink); box-shadow: var(--edge);
-    transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, transform .12s ease, box-shadow var(--dur-fast) ease;
+    transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--motion-fast) ease, box-shadow var(--dur-fast) ease;
   }
   .filter-chip:not(.active) { color: var(--muted); }
   .btn-secondary-alt:hover, .btn-secondary:hover, .cancel-btn:hover, .ref-cancel:hover, .directory-add:hover, .card-link-btn:hover,
@@ -1264,7 +1259,7 @@
     width: 60px; height: 60px; border: 1px solid rgba(255,255,255,.35); color: var(--on-accent);
     background: radial-gradient(120% 90% at 30% 8%, rgba(255,255,255,.42), transparent 55%), var(--accent-grad);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -8px 16px rgba(0,0,0,.10), 0 14px 34px color-mix(in srgb, var(--accent) 44%, transparent), 0 4px 10px rgba(0,0,0,.18);
-    transition: transform .18s var(--ease-spring), box-shadow .18s var(--ease), filter .18s ease;
+    transition: transform var(--motion-standard) var(--ease-spring), box-shadow var(--motion-standard) var(--ease), filter var(--motion-standard) ease;
   }
   .create-task-fab:hover { background: radial-gradient(120% 90% at 30% 8%, rgba(255,255,255,.5), transparent 55%), var(--accent-grad); transform: scale(1.05); filter: brightness(1.05); }
   .create-task-fab:active { transform: scale(.96); }
@@ -1317,7 +1312,7 @@
       background: var(--glass-3); backdrop-filter: blur(var(--blur-3)) saturate(var(--sat)); -webkit-backdrop-filter: blur(var(--blur-3)) saturate(var(--sat));
       border: 1px solid var(--glass-border); border-radius: 30px;
       -webkit-mask: radial-gradient(circle 41px at 50% 0, transparent 40px, #000 41px); mask: radial-gradient(circle 41px at 50% 0, transparent 40px, #000 41px);
-      transition: transform .32s var(--ease-spring), opacity .24s ease;
+      transition: transform var(--motion-slow) var(--ease-spring), opacity var(--motion-medium) ease;
     }
     .dock-bar::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
       background: linear-gradient(150deg, var(--rim-a), transparent 30%, transparent 70%, var(--rim-b));
@@ -1328,10 +1323,104 @@
     .dock-item:nth-child(1) { grid-column: 1; } .dock-item:nth-child(2) { grid-column: 2; }
     .dock-item:nth-child(3) { grid-column: 4; } .dock-item:nth-child(4) { grid-column: 5; }
     .dock-item.active { background: var(--sel-bg); color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 40%, transparent); box-shadow: var(--edge); }
-    .create-task-fab { right: auto; left: calc(50% - 31px); bottom: calc(12px + 66px - 31px + env(safe-area-inset-bottom, 0px)); z-index: 37; translate: 0 0; transition: transform .18s var(--ease-spring), box-shadow .18s var(--ease), filter .18s ease, translate .32s var(--ease-spring), opacity .24s ease; }
+    .create-task-fab { right: auto; left: calc(50% - 31px); bottom: calc(12px + 66px - 31px + env(safe-area-inset-bottom, 0px)); z-index: 37; translate: 0 0; transition: transform var(--motion-standard) var(--ease-spring), box-shadow var(--motion-standard) var(--ease), filter var(--motion-standard) ease, translate var(--motion-slow) var(--ease-spring), opacity var(--motion-medium) ease; }
     .dock-bar.dock-hidden { transform: translateY(calc(100% + 30px)); opacity: 0; pointer-events: none; }
     .create-task-fab.dock-hidden { translate: 0 calc(100% + 60px); opacity: 0; pointer-events: none; }
     .dial-scrim, .dial-menu { display: none; }
+  }
+
+  /* =============================================================
+     18. SHELL LAYOUT (wireframe) + MOTION (Apple Motion Design tokens)
+     Sidebar: brand · 4 nav tiles · sync (status dot) + theme at the bottom. Header: plain title + date.
+     ============================================================= */
+  @media (min-width: 901px) {
+    .command-sidebar { overflow-x: hidden; overflow-y: auto; }
+    .command-sidebar.collapsed { padding-inline: 10px; }
+    .sidebar-label, .sidebar-collapse-item { display: none; }
+    .sidebar-brand { padding: 4px 6px 22px; }
+    .sidebar-brand .brand-mark { width: 36px; height: 36px; flex: none; }
+    .sidebar-nav { gap: 6px; }
+    .sidebar-nav-item { justify-content: flex-start; padding: 6px; overflow: hidden; white-space: nowrap; }
+    .nav-icon { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
+    .sidebar-nav-item.active .nav-icon { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+    /* labels fade + slide instead of popping (width eases on the rail itself) */
+    .sidebar-brand-copy, .sidebar-nav-item > span:last-child, .sidebar-version {
+      transition: opacity var(--motion-standard) var(--ease-standard) 60ms, transform var(--motion-medium) var(--ease-enter) 40ms;
+    }
+    .command-sidebar.collapsed :is(.sidebar-brand-copy, .sidebar-nav-item > span:last-child, .sidebar-version) {
+      opacity: 0; transform: translateX(-6px); pointer-events: none; transition-delay: 0s;
+    }
+    .command-sidebar { transition: width var(--motion-slow) var(--ease-standard), padding var(--motion-slow) var(--ease-standard); }
+  }
+  .sidebar-footer { display: flex; flex-direction: column; gap: 4px; }
+  .side-actions { display: flex; flex-direction: column; gap: 4px; }
+  .sidebar-nav-item.side-action, .sidebar-nav-item.side-action:hover { width: 100%; height: auto; box-shadow: none; }
+  .sidebar-nav-item.side-action { background: transparent; border: 1px solid transparent; color: var(--muted); border-radius: 14px; }
+  .sidebar-nav-item.side-action:hover { background: var(--panel); border-color: transparent; color: var(--ink); }
+  .side-action .nav-icon { position: relative; border-radius: 50%; overflow: visible; }
+  .side-action .nav-icon .ico { width: 18px; height: 18px; }
+  .side-actions .live-status { position: absolute; top: -3px; right: -3px; }
+  .side-actions .live-dot { box-sizing: border-box; width: 12px; height: 12px; border: 2px solid var(--panel-solid); }
+  .header-actions .side-actions { flex-direction: row; gap: 8px; }
+  .header-actions .sidebar-nav-item.side-action { width: 44px; height: 44px; padding: 3px; justify-content: center; border-radius: 50%; }
+  .header-actions .side-action > span:last-child { display: none; }
+
+  /* Header: plain text on the ambient background */
+  .app-header { position: static; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 4px 6px 0; margin-bottom: 16px; border-radius: 0; align-items: center; }
+  .app-header::after { display: none; }
+  .app-header .app-brand { font-size: 28px; font-weight: 700; letter-spacing: -.032em; line-height: 1.1; }
+  .header-actions { gap: 14px; }
+  .header-date { font-size: 15px; font-weight: 600; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  @media (max-width: 640px) { .app-header .app-brand { font-size: 22px; } .header-date { font-size: 13px; } }
+
+  /* Section change: content transitions in rather than swapping */
+  .app-container > section:not(.hidden) { animation: sect-in var(--motion-medium) var(--ease-enter) both; }
+  @keyframes sect-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  /* Inner cards: explicit properties only, lift 2px */
+  .child-card, .directory-card, .person-card, .category-card, .dash-progress-row {
+    transition: transform var(--motion-medium) var(--ease-standard), box-shadow var(--motion-medium) var(--ease-standard), border-color var(--motion-standard) ease, background-color var(--motion-standard) ease;
+  }
+
+  /* Sidebar rows: fixed heights (no resize while collapsing) · plain selected highlight · drag-to-resize handle */
+  @media (min-width: 901px) {
+    .sidebar-brand { height: 48px; padding: 6px; margin-bottom: 16px; box-sizing: border-box; align-items: center; flex: none; }
+    .sidebar-brand-copy { line-height: 1.2; white-space: nowrap; }
+    .command-sidebar .sidebar-nav-item, .command-sidebar .sidebar-nav-item.side-action { height: 48px; flex: none; line-height: 1.2; }
+    .command-sidebar .sidebar-nav-item > span:last-child { line-height: 1.2; }
+    .command-sidebar .sidebar-nav-item.active, .command-sidebar .sidebar-nav-item.active:hover { background: var(--sel-bg); border-color: transparent; box-shadow: none; }
+    .command-sidebar .sidebar-nav-item.active .nav-icon { border-color: var(--line); box-shadow: none; }
+  }
+  .dock-item.active { border-color: transparent; box-shadow: none; }
+
+  /* Encapsulated highlights: icon dead-centre, equal 6px margin on every side, concentric corners.
+     Collapsed rail = 48px-wide rows (68 - 2 border - 2x9 padding) so a 36px tile sits with 6px all round. */
+  .nav-icon .ico, .nav-icon .theme-icon .ico { display: block; margin: 0; vertical-align: baseline; width: 18px; height: 18px; }
+  .nav-icon .theme-icon { display: grid; place-items: center; line-height: 0; }
+  @media (min-width: 901px) {
+    .command-sidebar:not(.collapsed) { padding-inline: var(--rail-pad-open); }
+    .command-sidebar.collapsed { padding-inline: var(--rail-pad); }
+    .command-sidebar .sidebar-nav-item { padding: 6px; border-radius: 17px; }                          /* 11px tile radius + 6px margin */
+    .command-sidebar .sidebar-nav-item.side-action { padding: 6px; border-radius: 24px; }             /* round tiles -> pill / circle highlight */
+    .command-sidebar .side-action .nav-icon { border-radius: 50%; }
+    .command-sidebar .sidebar-nav-item.side-action:hover { background: var(--panel); }
+  }
+
+  /* Sync + theme: locked sizes. Legacy 30/34/44px rules also target these classes, so pin height/min/max explicitly,
+     keep the label to one line (ellipsis, never wraps) and fix the tile so no state ("Offline", "Synced 2:04 PM", theme label) can resize the row. */
+  .side-actions, .sidebar-footer { flex: none; }
+  .command-sidebar .sidebar-nav-item.side-action { box-sizing: border-box; flex: 0 0 48px; height: 48px; min-height: 48px; max-height: 48px; }
+  .side-action .nav-icon { box-sizing: border-box; flex: none; width: 36px; height: 36px; min-width: 36px; min-height: 36px; }
+  .side-action > span:last-child { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+  .side-action .theme-icon { width: 18px; height: 18px; flex: none; }
+  .header-actions .sidebar-nav-item.side-action { box-sizing: border-box; flex: 0 0 44px; width: 44px; height: 44px; min-width: 44px; min-height: 44px; max-height: 44px; }
+
+  /* Version label: one fixed line in BOTH states. Wrapping to 4 lines in the narrow collapsed rail was pushing sync + theme up 39px. */
+  .sidebar-version { flex: none; height: 13px; line-height: 13px; white-space: nowrap; overflow: hidden; }
+
+  /* Rows are 50px (36 tile + 6 padding + 1 border, each side) so the tile has the same 7px margin all round — brand row included. */
+  @media (min-width: 901px) {
+    .sidebar-brand { height: 50px; border: 1px solid transparent; }
+    .command-sidebar .sidebar-nav-item, .command-sidebar .sidebar-nav-item.side-action { height: 50px; min-height: 50px; max-height: 50px; flex: 0 0 50px; }
   }
 
   /* Fallbacks: no backdrop-filter, or user asked for less transparency → opaque surfaces, still readable */
@@ -1405,31 +1494,26 @@
   </nav>
 
   <div class="sidebar-footer">
+    <div class="side-actions" id="sideActions">
+      <button class="sidebar-nav-item side-action force-sync-btn" id="forceSyncBtn" type="button" onclick="forceSync()" aria-label="Force sync with Google Sheets" title="Sync — retry any unsaved tasks and refresh from Google Sheets">
+        <span class="nav-icon" aria-hidden="true"><svg class="ico"><use href="#i-refresh"/></svg><span class="live-status" id="liveStatus" data-state="loading" role="status" title="Connecting…"><span class="live-dot"></span><span class="sr-only" id="liveStatusText">Connecting…</span></span></span><span id="syncLabel">Connecting…</span>
+      </button>
+      <button class="sidebar-nav-item side-action theme-toggle-btn" type="button" onclick="toggleTheme()" aria-label="Switch color theme" title="Switch color theme">
+        <span class="nav-icon" aria-hidden="true"><span class="theme-icon" id="themeIcon"></span></span><span id="themeModeLabel">Dark mode</span>
+      </button>
+    </div>
     <div class="sidebar-version" id="appVersion"></div>
   </div>
 </aside>
 
 <!-- GLOBAL APP HEADER -->
 <header class="app-header">
-  <div class="brand-lockup">
-    <div class="brand-mark" aria-hidden="true">SP</div>
-    <div>
-      <h1 class="app-brand">Space Planning Command Center</h1>
-      <div class="app-sub">Unified planning, workflow progress, and deadline control</div>
-    </div>
-  </div>
-    <div class="header-actions">
-    <span class="live-status" id="liveStatus" data-state="loading" role="status" title="Connecting…"><span class="live-dot"></span><span class="sr-only" id="liveStatusText">Connecting…</span></span>
+  <h1 class="app-brand" id="pageTitle">Dashboard</h1>
+  <div class="header-actions">
     <button class="overdue-chip" id="overdueChip" type="button" onclick="navigateWorkspace('dashboard')" aria-label="Overdue tasks — view dashboard">
       <svg class="ico" aria-hidden="true"><use href="#i-alert-triangle"/></svg><span id="overdueChipCount">0</span> overdue
     </button>
-    <button class="theme-toggle-btn" type="button" onclick="toggleTheme()" aria-label="Switch color theme" title="Switch color theme">
-      <span class="theme-icon" aria-hidden="true" id="themeIcon"></span>
-      <span class="sr-only" id="themeModeLabel">Dark mode</span>
-    </button>
-    <button class="force-sync-btn" id="forceSyncBtn" type="button" onclick="forceSync()" aria-label="Force sync with Google Sheets" title="Sync — retry any unsaved tasks and refresh from Google Sheets">
-      <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>
-    </button>
+    <time class="header-date" id="headerDate"></time>
   </div>
 </header>
 
@@ -2026,6 +2110,8 @@ function setBackendState(state, detail = '') {
   const full = label + (detail ? ` · ${detail}` : '');
   txt.textContent = full;
   el.title = full;
+  const sl = document.getElementById('syncLabel');   // sidebar sync label: last successful sync time, or the current state
+  if (sl) sl.textContent = state === 'ok' ? 'Synced ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ({ loading: 'Connecting…', offline: 'Local only', error: 'Offline' }[state] || 'Sync');
 }
 // Swap a task's temporary id for the Sheet-issued one. If a refresh already pulled the same row in,
 // drop the local copy so the task isn't listed twice; if its dialog is open, redraw it with the new id.
@@ -2658,7 +2744,9 @@ function renderCalendarTaskList() {
 /* =================================================================
    7. NAVIGATION / THEME / TOASTS
    ================================================================= */
+var PAGE_TITLES = { dashboard: 'Dashboard', calendar: 'Calendar', directories: 'Directories', people: 'People' };
 function navigateWorkspace(target) {
+  const pt = document.getElementById('pageTitle'); if (pt && PAGE_TITLES[target]) pt.textContent = PAGE_TITLES[target];
   _dockPinned = true; if (_dockShow) _dockShow();   // a section change keeps the dock + centre "+" visible until the user next scrolls/touches the content
   document.querySelectorAll('.dock-item').forEach(b => { const on = b.dataset.nav === target; b.classList.toggle('active', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   document.querySelectorAll('.sidebar-nav-item[data-nav]').forEach(btn => {
@@ -4418,6 +4506,45 @@ function initDock() {
   window.addEventListener('resize', () => { if (!isMobileViewport()) setHidden(false); });
 }
 
+function initShell() {
+  const dateEl = document.getElementById('headerDate');
+  const paint = () => { const d = new Date(); dateEl.textContent = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); dateEl.dateTime = d.toISOString().slice(0, 10); };
+  paint(); document.addEventListener('visibilitychange', paint);       // picks up the new day when the tab returns
+  // Sync + theme live in the sidebar footer; with no sidebar on mobile they move up into the header.
+  const wrap = document.getElementById('sideActions'), head = document.querySelector('.header-actions'), foot = document.querySelector('.sidebar-footer');
+  const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`);
+  const place = () => { if (mq.matches) head.appendChild(wrap); else foot.insertBefore(wrap, foot.firstChild); };
+  place(); mq.addEventListener('change', place);
+  fitSidebarWidths(); window.addEventListener('resize', () => requestAnimationFrame(fitSidebarWidths));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitSidebarWidths);
+}
+// Sidebar widths are CONTENT-DRIVEN (not draggable): each row's natural width = tile + gap + label + its padding/border, and the
+// rail is the widest row + the rail's own padding/border, so nothing is ever clipped.
+//   expanded  -> widest icon+label row      collapsed -> widest icon-only row
+// Labels that change at runtime are measured at their widest possible text, so toggling theme or a sync state never resizes the rail.
+const FIT_TEXT = { syncLabel: ['Synced 12:59 PM', 'Connecting…', 'Local only', 'Offline'], themeModeLabel: ['Dark mode', 'Light mode'] };
+function fitSidebarWidths() {
+  const side = document.getElementById('commandSidebar'); if (!side) return;
+  const root = document.documentElement, n = v => parseFloat(v) || 0;
+  const canvas = fitSidebarWidths._c || (fitSidebarWidths._c = document.createElement('canvas').getContext('2d'));
+  let open = 0, closed = 0;
+  side.querySelectorAll('.sidebar-brand, .sidebar-nav-item').forEach(row => {
+    if (row.offsetParent === null) return;                                    // display:none (hidden collapse button, mobile)
+    const lead = row.querySelector('.brand-mark, .nav-icon'), label = row.matches('.sidebar-brand') ? row.querySelector('.sidebar-brand-copy') : row.querySelector(':scope > span:last-child');
+    if (!lead) return;
+    const cs = getComputedStyle(row), chrome = n(cs.paddingLeft) + n(cs.paddingRight) + n(cs.borderLeftWidth) + n(cs.borderRightWidth), lw = lead.getBoundingClientRect().width;
+    let tw = 0;
+    if (label) { const rg = document.createRange(); rg.selectNodeContents(label); tw = Math.ceil(rg.getBoundingClientRect().width); }   // the text itself — the box may be stretched by flex
+    const cand = label && FIT_TEXT[label.id];
+    if (cand) { const ls = getComputedStyle(label); canvas.font = `${ls.fontStyle} ${ls.fontWeight} ${ls.fontSize} ${ls.fontFamily}`; tw = Math.max(tw, ...cand.map(t => Math.ceil(canvas.measureText(t).width))); }
+    closed = Math.max(closed, lw + chrome);
+    open = Math.max(open, lw + (label ? n(cs.columnGap) + tw : 0) + chrome);
+  });
+  if (closed <= 0) return;                                                     // sidebar not rendered
+  const v = name => n(getComputedStyle(root).getPropertyValue(name));
+  root.style.setProperty('--sidebar-w-collapsed', Math.ceil(closed + v('--rail-pad') * 2 + 2) + 'px');
+  root.style.setProperty('--sidebar-w', Math.ceil(open + v('--rail-pad-open') * 2 + 2) + 'px');
+}
 function initTaskDial() {
   const hub = document.getElementById('taskDialHub');
   hub.addEventListener('pointerdown', onDialPointerDown);
@@ -4435,6 +4562,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   initSidebar();
   initTaskDial();
   initDock();
+  initShell();
+  try { localStorage.removeItem('sp-sidebar-width'); } catch (e) {}   // retire the old drag-width preference
   const driveHref = safeUrl(DRIVE_FOLDER_URL);
   document.querySelectorAll('.drive-folder-link').forEach(a => { if (driveHref) { a.href = driveHref; a.classList.remove('hidden'); } });
   document.getElementById('appVersion').textContent = `SPACE PLANNING · v${APP_VERSION}`;
