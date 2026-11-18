@@ -925,6 +925,14 @@
   @keyframes skeleton { to { background-position: -200% 0; } }
   .input[aria-invalid="true"], .select[aria-invalid="true"], .type-pill-select[aria-invalid="true"] { border-color: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 16%, transparent); }
   .field-hint { margin-top: 5px; color: var(--muted); font-size: 11px; }
+  .file-pick-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .file-pick-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--panel); padding: 8px 13px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; }
+  .file-pick-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .file-pick-btn .ico { width: 14px; height: 14px; }
+  .file-pick-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .file-pick-btn:has(+ .file-pick-input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }   /* the input is visually hidden but still tabbable, so its focus ring shows on the visible label instead */
+  .file-pick-name { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+  .save-btn[aria-busy="true"] { opacity: .7; pointer-events: none; }
   .field-hint a { color: var(--accent-strong); font-weight: 700; }
   .manual-done { display: grid; gap: 10px; justify-items: start; padding: 14px; border: 1px dashed var(--line); border-radius: 10px; }
   .store-empty { padding: 10px 11px; color: var(--muted); font-size: 12px; }
@@ -1828,9 +1836,13 @@
           <section class="section">
             <div class="section-head"><div class="section-title">Module Allocation File</div></div>
             <div class="field">
-              <label class="label" for="moduleFileUrl">Google Drive link (optional)</label>
-              <input id="moduleFileUrl" class="input" placeholder="https://drive.google.com/file/d/...">
-              <div class="field-hint">Put the file in the team Drive folder, then paste its share link here. <a class="drive-folder-link hidden" target="_blank" rel="noopener">Open Drive folder</a></div>
+              <label class="label" for="moduleFileUrl">Attachment (optional)</label>
+              <div class="file-pick-row">
+                <label class="file-pick-btn" for="moduleFileUrl"><svg class="ico" aria-hidden="true"><use href="#i-file-text"/></svg>Choose file</label>
+                <input id="moduleFileUrl" type="file" class="file-pick-input" accept=".pdf,.xlsx,.xls,.csv,.doc,.docx,.png,.jpg,.jpeg" onchange="handleModuleFilePick(this)" aria-describedby="moduleFileHint">
+                <span class="file-pick-name" id="moduleFileName">No file selected</span>
+              </div>
+              <div class="field-hint" id="moduleFileHint">Uploads to the team's Module Allocation folder when you save this task — up to 15MB. <a class="drive-folder-link hidden" target="_blank" rel="noopener">Open Drive folder</a></div>
             </div>
           </section>
 
@@ -1886,7 +1898,7 @@
                PRESELECT_STANDARD_ASSIGNEES · REQUIRED_FIELDS
                UPLOAD_LABELS · STORE_SEARCH_LIMIT · LEGACY_PLACEHOLDERS
    PEOPLE      PERSON_MIN_HUE_GAP · PERSON_HUE_STEP   (colours are auto-generated)
-   FILES       DRIVE_FOLDER_URL · URL_FIELDS · UPLOAD_LABELS (legacy)
+   FILES       DRIVE_FOLDER_URL · MODULE_ALLOCATION_FOLDER_ID · MODULE_FILE_MAX_MB · URL_FIELDS · UPLOAD_LABELS (legacy)
    TASK DONE   BACKEND_SUPPORTS_TASK_DONE
    DEADLINES   DEADLINE_RULES (which deadline is checked against which step) · DEADLINE_VIEWS (which view watches which deadline)
                CASCADE_STAMPS_EARLIER_STEPS (do auto-ticked earlier steps get a time?)
@@ -1929,10 +1941,12 @@ const PRESELECT_STANDARD_ASSIGNEES = 0;  // how many people (from the top of Peo
 const STORE_SEARCH_LIMIT = 25;           // max rows in the store-lookup dropdown
 const PERSON_MIN_HUE_GAP = 30;           // team-member colours are generated; no two people may sit closer than this many degrees on the colour wheel
 const PERSON_HUE_STEP = 137.5;           // how far a colliding hue is pushed (golden angle → spreads evenly). Saturation/lightness: CSS --member-s / --member-bg-l / --member-txt-l
-const DRIVE_FOLDER_URL = '';             // team Google Drive folder for attachments — paste the link here when you have it; enables an "Open Drive folder" shortcut in the task form
+const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/1HK23MgM6YoEHs5DWP9KNQ6yUh6432WP5?usp=share_link';   // the team's "Module Allocations" Drive folder — powers the "Open Drive folder" shortcut
+const MODULE_ALLOCATION_FOLDER_ID = '1HK23MgM6YoEHs5DWP9KNQ6yUh6432WP5';   // same folder, as a bare id — this is what Code.gs actually uploads into (see uploadModuleFile_ there; the id in this constant is advisory only, the server always uses its own copy)
+const MODULE_FILE_MAX_MB = 15;           // client-side guard before attempting the upload — keep in sync with the same constant in Code.gs
 const BACKEND_SUPPORTS_TASK_DONE = true;  // Code.gs 4.5 handles action "setTaskDone". Set false if you are still on an older Code.gs (marks then stay on this device only)
 const UPLOAD_LABELS = { std: 'Upload Attachment (PDF, XLSX, PNG)', module: 'Upload Module Allocation (PDF, XLSX)' };   // LEGACY: old upload-button text that earlier builds saved as a filename
-const URL_FIELDS = { Standard: ['stdLinks', 'stdFileUrl'], Store: ['moduleFileUrl'] };   // optional fields that must be http(s) links if filled
+const URL_FIELDS = { Standard: ['stdLinks', 'stdFileUrl'], Store: [] };   // optional fields that must be http(s) links if filled — Module Allocation is a real upload now, not a pasted link
 // Fields that must be filled before "Save Task" works. id = element id; label = wording in the error toast.
 const REQUIRED_FIELDS = {
   Standard: [{ id: 'stdTitle', label: 'Title' }, { id: 'stdDate', label: 'Target date' }],
@@ -3948,6 +3962,7 @@ function openCreateModal() {
   CATEGORY_COLUMNS.forEach(c => { if (c.assignee) selectedCategoryAssignees[c.name] = c.assignee; });
   ['stdTitle','stdDate','stdTags','stdDesc','stdNotes','stdLinks','stdFileUrl','moduleFileUrl','storeSearch','store','storeCode','prodListDeadline','planoDeadline','storeNotes']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('moduleFileName').textContent = 'No file selected';
   document.getElementById('storeResults').style.display = 'none';
   clearFieldErrors();
   document.getElementById('stdSubtasksContainer').innerHTML = '';
@@ -4076,11 +4091,44 @@ function validateEntryForm(type) {
   return false;
 }
 
+// Shows the picked filename; the actual upload happens on Save (see saveNewTask), not here — picking a file and
+// then closing the modal without saving should not have silently uploaded anything.
+function handleModuleFilePick(input) {
+  const f = input.files && input.files[0];
+  document.getElementById('moduleFileName').textContent = f ? f.name : 'No file selected';
+  input.setCustomValidity('');
+  input.removeAttribute('aria-invalid');
+}
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');   // strip the "data:...;base64," prefix
+    reader.onerror = () => reject(reader.error || new Error('Could not read the file'));
+    reader.readAsDataURL(file);
+  });
+}
+// Uploads through Code.gs (see uploadModuleFile_ there) rather than any client-side Drive API, since this app has
+// no Google sign-in of its own — the Apps Script Web App already runs under an authorized identity for exactly
+// this kind of write. Returns { ok, url, name } or { ok: false, error }; never throws.
+async function uploadModuleFile(file) {
+  if (!APPS_SCRIPT_URL) return { ok: false, error: 'No Apps Script URL is configured (see CONFIG).' };
+  if (file.size > MODULE_FILE_MAX_MB * 1024 * 1024) return { ok: false, error: `File is over the ${MODULE_FILE_MAX_MB}MB limit.` };
+  try {
+    const data = await readFileAsBase64(file);
+    const result = await postToBackend('uploadModuleFile', { name: file.name, mimeType: file.type || 'application/octet-stream', data });
+    if (!result.ok) return { ok: false, error: result.error ? result.error.message : 'Upload failed.' };
+    return { ok: true, url: result.data.url, name: result.data.name };
+  } catch (err) {
+    return { ok: false, error: err.message || 'Upload failed.' };
+  }
+}
+
 async function saveNewTask() {
   const type = document.getElementById('typeSelect').value;
   if (!validateEntryForm(type)) return;
   const val = id => document.getElementById(id).value.trim();
   let payload;
+  let moduleUploadWarning = '';
 
   // Blank optional fields are saved blank. Previously they were filled with sentences
   // ("No notes provided.", "No date set") and a fake Drive link, which then looked like real data.
@@ -4107,9 +4155,23 @@ async function saveNewTask() {
       prodListDeadline: val('prodListDeadline'),
       planoDeadline: val('planoDeadline'),
       notes: val('storeNotes'),
-      fileUrl: safeUrl(val('moduleFileUrl')),
+      fileUrl: '',
       categoryAssignees: { ...selectedCategoryAssignees }
     };
+    // Module Allocation is a real upload now, done before the task itself is created so the finished task
+    // already has its link — there's no "edit task" feature yet to attach it after the fact. The file is
+    // optional: a failed upload still lets the task through, just without the attachment (confirmed behavior),
+    // with a toast explaining what happened once the task is created.
+    const moduleFile = document.getElementById('moduleFileUrl').files[0];
+    if (moduleFile) {
+      const saveBtn = document.querySelector('#taskEntryModal .save-btn');
+      const originalLabel = saveBtn.textContent;
+      saveBtn.setAttribute('aria-busy', 'true'); saveBtn.textContent = 'Uploading file…';
+      const uploaded = await uploadModuleFile(moduleFile);
+      saveBtn.removeAttribute('aria-busy'); saveBtn.textContent = originalLabel;
+      if (uploaded.ok) payload.fileUrl = uploaded.url;
+      else moduleUploadWarning = `Task saved, but the file didn't upload: ${uploaded.error}`;
+    }
   }
 
   // Optimistic create: the task appears in every view and the modal closes
@@ -4139,6 +4201,7 @@ async function saveNewTask() {
   tasks.push(newTask);
 
   showToast(APPS_SCRIPT_URL ? 'Task created — syncing to Google Sheets…' : 'Task created locally only — add your Apps Script URL in CONFIG to sync to Sheets.');
+  if (moduleUploadWarning) showToast(moduleUploadWarning);   // shown after the create toast, not instead of it — the task itself still went through
   closeCreateModal();
   renderAllTaskViews();
 
